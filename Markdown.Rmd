@@ -1,0 +1,114 @@
+---
+title: "Markdown"
+author: "Alissa Tophinke, Dionis Anderegg"
+date: "27 Mai 2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+```
+
+Erforderliche Packages laden:
+```{r, message = FALSE}
+library(rgdal) 
+library(sf)
+library(tidyverse)
+library(lubridate)
+library(zoo)
+library(FITfileR)
+```
+
+# Import
+Alle Files mit Endung .fit importieren und in ein einzelnes Data.frame zusammenführen.
+```{r}
+myfiles <- list.files(".",pattern = "*.fit")
+
+for (i in 1:length(myfiles)) {
+  varName <- paste0("temp", i, ".fit")
+  assign(varName, records(readFitFile(myfiles[i])))
+}
+
+full <- bind_rows(temp1.fit, temp2.fit)
+full
+```
+
+# Nötige Variablen berechnen (noch nicht fertig, hier nur wenige). 
+
+Noch sortieren nach Zeitstempel? Distanz und Speed müssen noch kontrolliert werden: Stimmt das, was in der FITDatei angegeben wird denn überhaupt?
+```{r}
+# Geschwindigkeit in kmh
+full$enhanced_speed_kmh <- full$enhanced_speed *3.6
+# Timelag berechnen
+full$timelag <- difftime(full$timestamp, lag(full$timestamp))
+# Aktivitäts ID erstellen => Wichtig für Gruppieren etc.
+full$activity_conter <- ifelse(full$timelag > 3600, TRUE, FALSE)   # Neue ID wenn mehr als 1 Stunde timelag
+full$activity_conter[1] <- TRUE  # ID 1 = TRUE, da die dies die Aktivität nummer 1 ist
+
+full$activity_ID <- cumsum(full$activity_conter == TRUE)  # Erstellt die AktivitätsID basierend auf Conter
+```
+
+# Datenanalyse
+```{r}
+full_long <- gather(full, type, value, distance:heart_rate)
+
+full_long %>%
+  filter(activity_ID == 2) %>%
+  ggplot(aes(timestamp, value)) +
+  geom_point()+
+  facet_wrap(~type, scales = "free",ncol = 1) +
+  theme_bw()
+```
+
+
+
+Tracks auf Karten darstellen (verschiedene Packages und Methoden). Welche Packages eignen sich?
+
+Leaflet ist interaktiv (m.E. sehr cool ;)) aber weniger einfach zu bearbeiten als ggplot oder ggmap (facets und einfärben von Datenpunkten etc.).
+```{r, message=FALSE}
+# Visualisierung mit ggplot ohne Karte
+library(tidyverse)
+ggplot(filter(full, enhanced_speed_kmh > 4), aes (position_lat, position_long, col = enhanced_speed_kmh)) +
+  geom_point() +
+  facet_wrap(~activity_ID, scales = "free") +
+  theme_bw()
+
+# Visualiseriung mit leaflet() => Interaktiv, schwer zu bearbeiten
+library(leaflet)
+
+# Track 1
+m1 <- full %>%
+  filter(activity_ID ==1) %>%
+  select(position_long, position_lat) %>% 
+  as.matrix() %>%
+  leaflet(  ) %>%
+  addTiles() %>%
+  addPolylines( )
+m1
+
+# Track 2
+m2 <- full %>%
+  filter(activity_ID ==2) %>%
+  select(position_long, position_lat) %>% 
+  as.matrix() %>%
+  leaflet(  ) %>%
+  addTiles() %>%
+  addPolylines( )
+m2
+
+# Visualiserung mit ggmap
+library(ggmap)
+myLocation <- c(min(full$position_long), min(full$position_lat), 
+                max(full$position_long), max(full$position_lat))  # Position definieren für Karten
+
+myMap <- get_stamenmap(bbox=myLocation, maptype="terrain", crop=TRUE, zoom = 13)  # Kartenimport
+
+ggmap(myMap) +
+  geom_point(data = filter(full, enhanced_speed_kmh > 3), 
+             aes(position_long,position_lat, col = enhanced_speed_kmh)) +
+  facet_wrap(~activity_ID) +
+  labs(title = paste(date(full$timestamp), "Jogging"),
+       x = "\nLängengrad [°E]", y = "Breitengrad [°N]\n")
+```
+
