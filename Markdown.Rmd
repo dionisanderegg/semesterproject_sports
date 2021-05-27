@@ -77,7 +77,10 @@ full_sf <- full_sf %>%
   group_by(activity_ID) %>%
   mutate(
     steplength = sqrt((E - lead(E))^2 + (N - lead(N))^2),
-    steplenght_sum = cumsum(replace_na(steplength,0))
+    steplenght_sum = cumsum(replace_na(steplength,0)),
+    hightdiff = lead(enhanced_altitude) - enhanced_altitude,
+    hightdiff_up = ifelse(hightdiff > 0, hightdiff, 0),
+    hightdiff_down = ifelse(hightdiff < 0, hightdiff, 0)
   )
 
 full_sf %>%
@@ -173,6 +176,38 @@ ggmap(myMap) +
              aes(position_long,position_lat, col = enhanced_speed_kmh)) +
   facet_wrap(~activity_ID) +
   labs(x = "\nLängengrad [°E]", y = "Breitengrad [°N]\n")
+```
+
+
+# Zusammenfassung pro Track
+```{r}
+zf <- full_sf %>%
+  st_drop_geometry() %>%
+  group_by(activity_ID) %>%
+  summarise(
+    date = date(timestamp[1]),
+    distance = max(distance, na.rm = TRUE),
+    time = as.numeric(difftime(max(timestamp), min(timestamp), units = "mins")),
+    hightdiff_up = sum(hightdiff_up, na.rm = TRUE),
+    hightdiff_down = sum(hightdiff_down, na.rm = TRUE)
+    )
+```
+
+
+# Multimodel Inference
+
+```{r}
+if(!require(MuMIn)){install.packages("MuMIn")}
+library(MuMIn)
+
+global.model <- lm (zf$time ~ zf$distance + zf$hightdiff_up + zf$hightdiff_down, data=zf)
+options(na.action="na.fail")
+allmodels <- dredge(global.model)
+allmodels
+importance(allmodels)
+
+avgmodel<-model.avg(get.models(dredge(global.model,rank="AICc"),subset=TRUE))
+summary(avgmodel)
 ```
 
 #TEST new fork tophial
