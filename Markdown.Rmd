@@ -58,12 +58,12 @@ full$activity_conter[1] <- TRUE  # ID 1 = TRUE, da die dies die Aktivität numme
 full$activity_ID <- cumsum(full$activity_conter == TRUE)  # Erstellt die AktivitätsID basierend auf Conter
 ```
 
-# Datenanalyse
+# Datenanalyse eines einzelnen Tracks
 ```{r}
-full_long <- gather(full, type, value, distance:heart_rate)
+full_long <- gather(full, type, value, enhanced_altitude:heart_rate, enhanced_speed_kmh)
 
 full_long %>%
-  filter(activity_ID == 2) %>%
+  filter(activity_ID == 5) %>%
   ggplot(aes(timestamp, value)) +
   geom_point()+
   facet_wrap(~type, scales = "free",ncol = 1) +
@@ -71,7 +71,7 @@ full_long %>%
 ```
 
 
-
+# Visualisieren auf Karten
 Tracks auf Karten darstellen (verschiedene Packages und Methoden). Welche Packages eignen sich?
 
 Leaflet ist interaktiv (m.E. sehr cool ;)) aber weniger einfach zu bearbeiten als ggplot oder ggmap (facets und einfärben von Datenpunkten etc.).
