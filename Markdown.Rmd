@@ -18,20 +18,23 @@ library(tidyverse)
 library(lubridate)
 library(zoo)
 library(FITfileR)
+library(gdata)
 ```
 
 # Import
-Alle Files mit Endung .fit importieren und in ein einzelnes Data.frame zusammenführen.
+Alle Files mit Endung .fit importieren und in ein einzelnes Data.frame zusammenführen. Alle anderen Data.frames löschen, sodass nur noch das gesamte DF im Workspace ist.
 ```{r}
 myfiles <- list.files(".",pattern = "*.fit")
 
 for (i in 1:length(myfiles)) {
   varName <- paste0("temp", i, ".fit")
-  assign(varName, records(readFitFile(myfiles[i])))
+  assign(varName, as.data.frame(records(readFitFile(myfiles[i]))))
 }
 
-full <- bind_rows(temp1.fit, temp2.fit)
-full
+full <- mget(ls(pattern="temp")) %>%
+              bind_rows()
+keep(full, sure = TRUE)
+head(full)
 ```
 
 # Nötige Variablen berechnen (noch nicht fertig, hier nur wenige). 
