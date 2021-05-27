@@ -17,6 +17,12 @@ library(sf)
 library(tidyverse)
 library(lubridate)
 library(zoo)
+
+if(!requireNamespace("remotes")) {
+    install.packages("remotes")
+}
+remotes::install_github("grimbough/FITfileR")
+
 library(FITfileR)
 library(gdata)
 ```
