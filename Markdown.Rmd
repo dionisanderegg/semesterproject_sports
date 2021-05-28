@@ -10,6 +10,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```
 
+# Packages
 Erforderliche Packages laden:
 ```{r, message = FALSE}
 library(rgdal) 
@@ -29,7 +30,7 @@ library(evir)
 ```
 
 # Import
-Alle Files mit Endung .fit importieren und in ein einzelnes Data.frame zusammenführen. Alle anderen Data.frames löschen, sodass nur noch das gesamte DF im Workspace ist.
+Alle Files mit Endung .fit aus dem R-Projektordner importieren und in ein einzelnes Data.frame zusammenführen. Alle anderen Data.frames löschen, sodass nur noch das gesamte DF im Workspace ist. Diverse Berechnungen müssen somit nur einmalig durchgeführt werden (timelag, Distanz usw.).
 ```{r}
 myfiles <- list.files(".",pattern = "*.fit")
 
@@ -46,36 +47,80 @@ head(full)
 
 # Nötige Variablen berechnen (noch nicht fertig, hier nur wenige). 
 
-Noch sortieren nach Zeitstempel? Distanz und Speed müssen noch kontrolliert werden: Stimmt das, was in der FITDatei angegeben wird denn überhaupt?
+Geschwindigkeit und Timelags berechnen. Aktivitäten müssen gruppiert werden können. Dies geschicht über die "activity_ID", welche das Data-Frame in einzelne Tracks segmentiert.
+Für die Distanz zwischen zwei GPS-Fixes muss ein SF-Objekt erstellt werden und in das Format CH1903+ LV95 umgewandelt werden. Daraus lässt sich die Distanz berechnen.
 ```{r}
 # Geschwindigkeit in kmh
 full$enhanced_speed_kmh <- full$enhanced_speed *3.6
 # Timelag berechnen
-full$timelag <- difftime(full$timestamp, lag(full$timestamp))
+full$timelag <- as.integer(difftime(full$timestamp, lag(full$timestamp)))
 # Aktivitäts ID erstellen => Wichtig für Gruppieren etc.
 full$activity_conter <- ifelse(full$timelag > 3600, TRUE, FALSE)   # Neue ID wenn mehr als 1 Stunde timelag
 full$activity_conter[1] <- TRUE  # ID 1 = TRUE, da die dies die Aktivität nummer 1 ist
 
 full$activity_ID <- cumsum(full$activity_conter == TRUE)  # Erstellt die AktivitätsID basierend auf Conter
-```
 
-# Datenanalyse
+# In SF umwandeln => Um die Euclidian distance zu berechnen
+full_sf <- st_as_sf(full, coords = c("position_long", "position_lat"),
+         crs = 4326)
+
+# Konvertieren zu CH1903+ LV95
+full_sf <- st_transform(full_sf, crs = 2056)
+options(digits = 3)
+
+# N und E Koordinaten aus der Geometrie ziehen
+full_sf$N <- st_coordinates(full_sf$geometry)[,1]
+full_sf$E <- st_coordinates(full_sf$geometry)[,2]
+
+# Euclidian steplength berechnen
+
+full_sf <- full_sf %>%
+  group_by(activity_ID) %>%
+  mutate(
+    steplength = sqrt((E - lead(E))^2 + (N - lead(N))^2),
+    steplenght_sum = cumsum(replace_na(steplength,0)),
+    hightdiff = lead(enhanced_altitude) - enhanced_altitude,
+    hightdiff_up = ifelse(hightdiff > 0, hightdiff, 0),
+    hightdiff_down = ifelse(hightdiff < 0, hightdiff, 0)
+  )
+
+full_sf %>%
+  filter(activity_ID == 1) %>%
+  ggplot() +
+  geom_point(aes(timestamp, distance), col = "blue") +
+  geom_point(aes(timestamp, steplenght_sum), col = "red") +
+  theme_bw() +
+  labs(x = "\nUhrzeit in hh:mm", y = "Distanz in m\n")
+
+max(full_sf$distance) / max(full_sf$steplenght_sum)
+```
+Die Grafik zeigt, dass die Distanz aus dem .fit-File sehr nahe an der berechneten Distanz liegt.
+Die .fit-Datei gibt eine um 1.1 % tiefere Distanz an als die über die GPS-Fixes berechnete Distanz.
+Weiter mit den Daten von der .fit Datei???
+
+
+# Datenanalyse eines einzelnen Tracks
+Folgend wird grafisch aufgezeigt, wie sich die Variablen Geschwindigkeit, Höhendifferenz und Herzfrequenz verhalten.
 ```{r}
-full_long <- gather(full, type, value, distance:heart_rate)
+full_long <- gather(full, type, value, enhanced_altitude:heart_rate, enhanced_speed_kmh)
 
 full_long %>%
-  filter(activity_ID == 2) %>%
-  ggplot(aes(timestamp, value)) +
-  geom_point()+
+  filter(activity_ID == 5) %>%
+  ggplot(aes(timestamp, value, col = type)) +
+  geom_line()+
+  geom_point() +
   facet_wrap(~type, scales = "free",ncol = 1) +
-  theme_bw()
+  theme_bw() +
+  theme(legend.position = "none") +
+  labs(x = "\nUhrzeit in hh:mm", y = "Wert\n")
 ```
 
+In der Tendenz lässt sich visuell eine Abnahme der Geschwindigkeit und eine Zunahme der Herzfrequenz mit einem Höhenanstieg erkennen. Ausserdem ist eine Pause von ca. 10 minuten duetlich am Geschwindigkeitdiagramm zu erkennen.
 
-
+# Visualisieren auf Karten
 Tracks auf Karten darstellen (verschiedene Packages und Methoden). Welche Packages eignen sich?
 
-Leaflet ist interaktiv (m.E. sehr cool ;)) aber weniger einfach zu bearbeiten als ggplot oder ggmap (facets und einfärben von Datenpunkten etc.).
+ggplot:
 ```{r, message=FALSE}
 # Visualisierung mit ggplot ohne Karte
 library(tidyverse)
@@ -83,7 +128,12 @@ ggplot(filter(full, enhanced_speed_kmh > 4), aes (position_lat, position_long, c
   geom_point() +
   facet_wrap(~activity_ID, scales = "free") +
   theme_bw()
+```
 
+Beim Track 5 scheint es noch ein Problem mit den Daten zu geben.
+
+Leaflet ist interaktiv (m.E. sehr cool ;)) aber weniger einfach zu bearbeiten als ggplot oder ggmap (facets und einfärben von Datenpunkten etc.).
+```{r, message = FALSE}
 # Visualiseriung mit leaflet() => Interaktiv, schwer zu bearbeiten
 library(leaflet)
 
@@ -106,11 +156,19 @@ m2 <- full %>%
   addTiles() %>%
   addPolylines( )
 m2
+```
 
+
+ggmap() => Da die Karten importiert werden müssen nur für 3 Tracks gezeigt:
+```{r, message = FALSE}
 # Visualiserung mit ggmap
+track1_3 <- full %>%
+  filter(activity_ID < 4)
+
 library(ggmap)
-myLocation <- c(min(full$position_long), min(full$position_lat), 
-                max(full$position_long), max(full$position_lat))  # Position definieren für Karten
+
+myLocation <- c(min(track1_3$position_long), min(track1_3$position_lat), 
+                max(track1_3$position_long), max(track1_3$position_lat))  # Position definieren für Karten
 
 myMap <- get_stamenmap(bbox=myLocation, maptype="terrain", crop=TRUE, zoom = 13)  # Kartenimport
 
@@ -118,8 +176,59 @@ ggmap(myMap) +
   geom_point(data = filter(full, enhanced_speed_kmh > 3), 
              aes(position_long,position_lat, col = enhanced_speed_kmh)) +
   facet_wrap(~activity_ID) +
-  labs(title = paste(date(full$timestamp), "Jogging"),
-       x = "\nLängengrad [°E]", y = "Breitengrad [°N]\n")
+  labs(x = "\nLängengrad [°E]", y = "Breitengrad [°N]\n")
+```
+
+
+# Zusammenfassung pro Track
+```{r}
+zf <- full_sf %>%
+  st_drop_geometry() %>%
+  group_by(activity_ID) %>%
+  summarise(
+    date = date(timestamp[1]),
+    distance = max(distance, na.rm = TRUE),
+    time = as.numeric(difftime(max(timestamp), min(timestamp), units = "mins")),
+    hightdiff_up = sum(hightdiff_up, na.rm = TRUE),
+    hightdiff_down = sum(hightdiff_down, na.rm = TRUE),
+    mean_pace = time / distance * 1000
+    )
+```
+
+
+# Multimodel Inference
+
+```{r}
+if(!require(MuMIn)){install.packages("MuMIn")}
+library(MuMIn)
+library(gridExtra)
+
+global.model <- lm(zf$time ~ 0 + zf$distance + zf$hightdiff_up + zf$hightdiff_down, data=zf)
+options(na.action="na.fail")
+allmodels <- dredge(global.model)
+allmodels
+
+importance(allmodels)
+
+avgmodel<-model.avg(get.models(dredge(global.model,rank="AICc"),subset=TRUE))
+summary(avgmodel)
+
+# Komischerweise ist das "drittbeste Modell" einiges genauer als das beste Modell...
+distance_param <- allmodels$`zf$distance`[3]
+up_param <- allmodels$`zf$hightdiff_up`[3]
+down_param <- allmodels$`zf$hightdiff_down`[3]
+
+zf$time_estimated <- zf$distance *distance_param + zf$hightdiff_up * up_param + zf$hightdiff_down * down_param
+
+zf %>% 
+  select(activity_ID, time_measured = time, time_estimated) %>%
+  gather(type, value, time_measured, time_estimated) %>%
+  ggplot(aes(activity_ID, value, col = type)) +
+  geom_point() +
+  theme_bw() +
+  labs(x = "\nAktivitäts-ID", y = "Zeitbedarf in min\n")
 ```
 
 #TEST new fork tophial
+
+# Test Dionis
