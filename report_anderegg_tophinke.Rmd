@@ -1,0 +1,29 @@
+---
+title: "Modelling the individual time requirement for sport activities using previous GPS-Tracks."
+author: "Anderegg Dionis, Tophinke Alissa"
+date: "28 / 5 / 2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Table of contents
+1. [Introduction](#introduction)
+2. [Methods](#paragraph1)
+    1. [Sub paragraph](#subparagraph1)
+3. [Results](#paragraph2)
+
+## 1 Introduction <a name="introduction"></a>
+Some introduction text, formatted in heading 2 style
+
+## 2 Methods <a name="paragraph1"></a>
+The first paragraph text
+
+### 2.1 Preparation of data <a name="subparagraph1"></a>
+This is a sub paragraph, formatted in heading 3 style
+
+## 3 Results <a name="paragraph2"></a>
+The second paragraph text
+
