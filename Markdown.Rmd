@@ -19,6 +19,8 @@ library(tidyverse)
 library(lubridate)
 library(zoo)
 
+#library(evir)
+
 if(!requireNamespace("remotes")) {
     install.packages("remotes")
 }
@@ -26,7 +28,7 @@ remotes::install_github("grimbough/FITfileR")
 
 library(FITfileR)
 library(gdata)
-library(evir)
+
 ```
 
 # Import
@@ -130,7 +132,7 @@ ggplot(filter(full, enhanced_speed_kmh > 4), aes (position_lat, position_long, c
   theme_bw()
 ```
 
-Beim Track 5 scheint es noch ein Problem mit den Daten zu geben.
+Beim Track 5 scheint es noch ein Problem mit den Daten zu geben.--> outlier? 
 
 Leaflet ist interaktiv (m.E. sehr cool ;)) aber weniger einfach zu bearbeiten als ggplot oder ggmap (facets und einfärben von Datenpunkten etc.).
 ```{r, message = FALSE}
@@ -229,6 +231,6 @@ zf %>%
   labs(x = "\nAktivitäts-ID", y = "Zeitbedarf in min\n")
 ```
 
-#TEST new fork tophial
+
 
 # Test Dionis
