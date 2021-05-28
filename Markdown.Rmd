@@ -25,6 +25,7 @@ remotes::install_github("grimbough/FITfileR")
 
 library(FITfileR)
 library(gdata)
+library(evir)
 ```
 
 # Import
