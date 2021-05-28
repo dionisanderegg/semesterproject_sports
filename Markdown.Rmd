@@ -220,13 +220,17 @@ down_param <- allmodels$`zf$hightdiff_down`[3]
 zf$time_estimated <- zf$distance *distance_param + zf$hightdiff_up * up_param + zf$hightdiff_down * down_param
 
 zf %>% 
-  select(activity_ID, time_measured = time, time_estimated) %>%
+  select(activity_ID, time_measured = time, time_estimated, distance, hightdiff_up, hightdiff_down) %>%
   gather(type, value, time_measured, time_estimated) %>%
   ggplot(aes(activity_ID, value, col = type)) +
   geom_point() +
+  geom_text(aes(y = max(zf$time) + 15, label = paste("Dist:", round(distance/1000,1), "km"))) +
+  geom_text(aes(y = max(zf$time) + 10, label = paste("Aufw.:", round(hightdiff_up,0), "m"))) +
+  geom_text(aes(y = max(zf$time) + 5, label = paste("Abw.:", -round(hightdiff_down,0), "m"))) +
   theme_bw() +
   labs(x = "\nAktivitäts-ID", y = "Zeitbedarf in min\n")
 ```
+
 
 #TEST new fork tophial
 
