@@ -189,7 +189,8 @@ zf <- full_sf %>%
     distance = max(distance, na.rm = TRUE),
     time = as.numeric(difftime(max(timestamp), min(timestamp), units = "mins")),
     hightdiff_up = sum(hightdiff_up, na.rm = TRUE),
-    hightdiff_down = sum(hightdiff_down, na.rm = TRUE)
+    hightdiff_down = sum(hightdiff_down, na.rm = TRUE),
+    mean_pace = time / distance * 1000
     )
 ```
 
@@ -199,15 +200,32 @@ zf <- full_sf %>%
 ```{r}
 if(!require(MuMIn)){install.packages("MuMIn")}
 library(MuMIn)
+library(gridExtra)
 
-global.model <- lm (zf$time ~ zf$distance + zf$hightdiff_up + zf$hightdiff_down, data=zf)
+global.model <- lm(zf$time ~ 0 + zf$distance + zf$hightdiff_up + zf$hightdiff_down, data=zf)
 options(na.action="na.fail")
 allmodels <- dredge(global.model)
 allmodels
+
 importance(allmodels)
 
 avgmodel<-model.avg(get.models(dredge(global.model,rank="AICc"),subset=TRUE))
 summary(avgmodel)
+
+# Komischerweise ist das "drittbeste Modell" einiges genauer als das beste Modell...
+distance_param <- allmodels$`zf$distance`[3]
+up_param <- allmodels$`zf$hightdiff_up`[3]
+down_param <- allmodels$`zf$hightdiff_down`[3]
+
+zf$time_estimated <- zf$distance *distance_param + zf$hightdiff_up * up_param + zf$hightdiff_down * down_param
+
+zf %>% 
+  select(activity_ID, time_measured = time, time_estimated) %>%
+  gather(type, value, time_measured, time_estimated) %>%
+  ggplot(aes(activity_ID, value, col = type)) +
+  geom_point() +
+  theme_bw() +
+  labs(x = "\nAktivitäts-ID", y = "Zeitbedarf in min\n")
 ```
 
 #TEST new fork tophial
