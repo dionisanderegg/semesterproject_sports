@@ -17,23 +17,23 @@ In this semester project, sports tracks are analysed using GPS data from a Garmi
 1. [Introduction](#introduction)
 2. [Methods](#methods)
 
-    2.1 [Sub paragraph](#subparagraph1)
+    2.1 [Preparation of data](#subparagraph1)
     
-    2.2 [Sub paragraph](#subparagraph1)
+    2.2 [Evaluation of data](#subparagraph1)
     
 3. [Results](#paragraph2)
 
 ## 1 Introduction <a name="introduction"></a>
-Sport watches are a popular tool for monitor and regulate training activities among both professional and amateur athletes. Studies have already investigated for different sports watches (Apple, Coros, Garmin, Polar, and Suunto) how much the GPS data corresponds to reality .
+Sport watches are a popular tool for monitor and regulate training activities among both professional and amateur athletes. Studies have already investigated for different sports watches (Apple, Coros, Garmin, Polar, and Suunto) how much the GPS data corresponds to reality authorsN / editorsN, +initials, +<joinchar>[@gilgen-ammannAccuracyDistanceRecordings2020] .
 
 ## 2 Methods <a name="methods"></a>
-The first paragraph text
+
 
 ### 2.1 Preparation of data <a name="subparagraph1"></a>
-This is a sub paragraph, formatted in heading 3 style
+A dataset (data.frame) was generated using sports tracks data from a garmin-sportwatch by Dionis Anderegg. The data which can be obtained via the Garmin portal include spatio-temporal information (GPS-points, time,) and  heart-rates, which comes within the .fit format. The tracks are already divided into the corresponding type of sport "jogging", "hiking", "biking".
 
-### 2.2 Preparation of data <a name="subparagraph1"></a>
-This is a sub paragraph, formatted in heading 3 style
+### 2.2 Evaluation of data <a name="subparagraph1"></a>
+To evaluate the data, a suitable digital elevation model DEM (e.g. DHM25) is  used in order to compare  the information of the .fit files. 
 
 ## 3 Results <a name="paragraph2"></a>
 The second paragraph text
