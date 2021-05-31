@@ -19,8 +19,6 @@ library(tidyverse)
 library(lubridate)
 library(zoo)
 
-#library(evir)
-
 if(!requireNamespace("remotes")) {
     install.packages("remotes")
 }
@@ -28,7 +26,6 @@ remotes::install_github("grimbough/FITfileR")
 
 library(FITfileR)
 library(gdata)
-
 ```
 
 # Import
@@ -57,7 +54,7 @@ full$enhanced_speed_kmh <- full$enhanced_speed *3.6
 # Timelag berechnen
 full$timelag <- as.integer(difftime(full$timestamp, lag(full$timestamp)))
 # Aktivitäts ID erstellen => Wichtig für Gruppieren etc.
-full$activity_conter <- ifelse(full$timelag > 3600, TRUE, FALSE)   # Neue ID wenn mehr als 1 Stunde timelag
+full$activity_conter <- ifelse(abs(full$timelag) > 3600, TRUE, FALSE)   # Neue ID wenn mehr als 1 Stunde timelag
 full$activity_conter[1] <- TRUE  # ID 1 = TRUE, da die dies die Aktivität nummer 1 ist
 
 full$activity_ID <- cumsum(full$activity_conter == TRUE)  # Erstellt die AktivitätsID basierend auf Conter
@@ -87,7 +84,7 @@ full_sf <- full_sf %>%
   )
 
 full_sf %>%
-  filter(activity_ID == 1) %>%
+  filter(activity_ID == 5) %>%
   ggplot() +
   geom_point(aes(timestamp, distance), col = "blue") +
   geom_point(aes(timestamp, steplenght_sum), col = "red") +
@@ -107,7 +104,7 @@ Folgend wird grafisch aufgezeigt, wie sich die Variablen Geschwindigkeit, Höhen
 full_long <- gather(full, type, value, enhanced_altitude:heart_rate, enhanced_speed_kmh)
 
 full_long %>%
-  filter(activity_ID == 5) %>%
+  filter(activity_ID == 1) %>%
   ggplot(aes(timestamp, value, col = type)) +
   geom_line()+
   geom_point() +
@@ -132,7 +129,7 @@ ggplot(filter(full, enhanced_speed_kmh > 4), aes (position_lat, position_long, c
   theme_bw()
 ```
 
-Beim Track 5 scheint es noch ein Problem mit den Daten zu geben.--> outlier? 
+Bei einigen Tracks scheint es noch ein Problem mit den Daten zu geben. = Siehe obiger Plot.
 
 Leaflet ist interaktiv (m.E. sehr cool ;)) aber weniger einfach zu bearbeiten als ggplot oder ggmap (facets und einfärben von Datenpunkten etc.).
 ```{r, message = FALSE}
@@ -175,7 +172,7 @@ myLocation <- c(min(track1_3$position_long), min(track1_3$position_lat),
 myMap <- get_stamenmap(bbox=myLocation, maptype="terrain", crop=TRUE, zoom = 13)  # Kartenimport
 
 ggmap(myMap) +
-  geom_point(data = filter(full, enhanced_speed_kmh > 3), 
+  geom_point(data = filter(track1_3, enhanced_speed_kmh > 3), 
              aes(position_long,position_lat, col = enhanced_speed_kmh)) +
   facet_wrap(~activity_ID) +
   labs(x = "\nLängengrad [°E]", y = "Breitengrad [°N]\n")
@@ -223,14 +220,26 @@ down_param <- allmodels$`zf$hightdiff_down`[3]
 zf$time_estimated <- zf$distance *distance_param + zf$hightdiff_up * up_param + zf$hightdiff_down * down_param
 
 zf %>% 
-  select(activity_ID, time_measured = time, time_estimated) %>%
+  select(activity_ID, time_measured = time, time_estimated, distance, hightdiff_up, hightdiff_down) %>%
   gather(type, value, time_measured, time_estimated) %>%
-  ggplot(aes(activity_ID, value, col = type)) +
+  ggplot(aes(distance, value, col = type)) +
   geom_point() +
+  geom_line() +
+  geom_text(aes(y = max(zf$time) + 15, label = paste("Dist:", round(distance/1000,1), "km"))) +
+  geom_text(aes(y = max(zf$time) + 10, label = paste("Aufw.:", round(hightdiff_up,0), "m"))) +
+  geom_text(aes(y = max(zf$time) + 5, label = paste("Abw.:", -round(hightdiff_down,0), "m"))) +
   theme_bw() +
   labs(x = "\nAktivitäts-ID", y = "Zeitbedarf in min\n")
+
+zf %>% 
+  select(activity_ID, time_measured = time, time_estimated, distance, hightdiff_up, hightdiff_down) %>%
+  gather(type, value, time_measured, time_estimated) %>%
+  ggplot(aes(distance, value, col = type)) +
+  geom_point() +
+  geom_smooth()
 ```
 
 
+#TEST new fork tophial
 
 # Test Dionis
