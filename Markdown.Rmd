@@ -10,7 +10,8 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```
 
-# Packages
+#Data Preparation 
+## Load packages
 Erforderliche Packages laden:
 ```{r, message = FALSE}
 library(rgdal) 
@@ -18,8 +19,8 @@ library(sf)
 library(tidyverse)
 library(lubridate)
 library(zoo)
-
-#library(evir)
+library(purrr)
+library(base)
 
 if(!requireNamespace("remotes")) {
     install.packages("remotes")
@@ -28,13 +29,12 @@ remotes::install_github("grimbough/FITfileR")
 
 library(FITfileR)
 library(gdata)
-library(purrr)
-library(base)
 
 
 ```
 
-# Import
+## Import data
+
 Alle Files mit Endung .fit aus dem R-Projektordner importieren und in ein einzelnes Data.frame zusammenführen. Alle anderen Data.frames löschen, sodass nur noch das gesamte DF im Workspace ist. Diverse Berechnungen müssen somit nur einmalig durchgeführt werden (timelag, Distanz usw.).
 ```{r message=TRUE, warning=FALSE}
 myfiles <- list.files(".",pattern = "*.fit")
@@ -52,8 +52,19 @@ full <- mget(ls(pattern="temp")) %>%
 keep(full, sure = TRUE)
 head(full)
 ```
+## evaluate altitude with DEM 
 
-# Nötige Variablen berechnen (noch nicht fertig, hier nur wenige). 
+```{r}
+#digital elevation model to verify altitude for each GPS location
+
+
+
+
+```
+
+
+
+## add variables 
 
 Geschwindigkeit und Timelags berechnen. Aktivitäten müssen gruppiert werden können. Dies geschicht über die "activity_ID", welche das Data-Frame in einzelne Tracks segmentiert.
 Für die Distanz zwischen zwei GPS-Fixes muss ein SF-Objekt erstellt werden und in das Format CH1903+ LV95 umgewandelt werden. Daraus lässt sich die Distanz berechnen.
@@ -63,8 +74,8 @@ full$enhanced_speed_kmh <- full$enhanced_speed *3.6
 # Timelag berechnen
 full$timelag <- as.integer(difftime(full$timestamp, lag(full$timestamp)))
 # Aktivitäts ID erstellen => Wichtig für Gruppieren etc.
-full$activity_conter <- ifelse(full$timelag > 3600, TRUE, FALSE)   # Neue ID wenn mehr als 1 Stunde timelag
-full$activity_conter[1] <- TRUE  # ID 1 = TRUE, da die dies die Aktivität nummer 1 ist
+full$activity_conter <- ifelse(abs(full$timelag) > 3600, TRUE, FALSE)   # Neue ID wenn mehr als 1 Stunde timelag
+full$activity_conter[1] <- TRUE  # ID 1 = TRUE, da die dies die Aktivität Nummer 1 ist
 
 full$activity_ID <- cumsum(full$activity_conter == TRUE)  # Erstellt die AktivitätsID basierend auf Conter
 
@@ -95,7 +106,7 @@ full_sf <- full_sf %>%
 #compare distance and steplength_sum
 
 full_sf %>%
-  filter(activity_ID == 1) %>%
+  filter(activity_ID == 5) %>%
   ggplot() +
   geom_point(aes(timestamp, distance), col = "blue") +
   geom_point(aes(timestamp, steplenght_sum), col = "red") +
@@ -111,13 +122,16 @@ Die .fit-Datei gibt eine um 1.1 % tiefere Distanz an als die über die GPS-Fixes
 Weiter mit den Daten von der .fit Datei???
 
 
-# Datenanalyse eines einzelnen Tracks
+# Explorative data analysis 
+
+Datenanalyse eines einzelnen Tracks
+
 Folgend wird grafisch aufgezeigt, wie sich die Variablen Geschwindigkeit, Höhendifferenz und Herzfrequenz verhalten.
 ```{r}
 full_long <- gather(full, type, value, enhanced_altitude:heart_rate, enhanced_speed_kmh)
 
 full_long %>%
-  filter(activity_ID == 5) %>%
+  filter(activity_ID == 1) %>%
   ggplot(aes(timestamp, value, col = type)) +
   geom_line()+
   geom_point() +
@@ -129,8 +143,11 @@ full_long %>%
 
 In der Tendenz lässt sich visuell eine Abnahme der Geschwindigkeit und eine Zunahme der Herzfrequenz mit einem Höhenanstieg erkennen. Ausserdem ist eine Pause von ca. 10 minuten duetlich am Geschwindigkeitdiagramm zu erkennen.
 
-# Visualisieren auf Karten
+# Map visualizations
+
 Tracks auf Karten darstellen (verschiedene Packages und Methoden). Welche Packages eignen sich?
+
+## visualization without maps
 
 ggplot:
 ```{r, message=FALSE}
@@ -142,7 +159,9 @@ ggplot(filter(full, enhanced_speed_kmh > 4), aes (position_lat, position_long, c
   theme_bw()
 ```
 
-Beim Track 5 scheint es noch ein Problem mit den Daten zu geben.--> outlier? 
+Bei einigen Tracks scheint es noch ein Problem mit den Daten zu geben. = Siehe obiger Plot.
+
+##visualization with leaflet
 
 Leaflet ist interaktiv (m.E. sehr cool ;)) aber weniger einfach zu bearbeiten als ggplot oder ggmap (facets und einfärben von Datenpunkten etc.).
 ```{r, message = FALSE}
@@ -185,7 +204,7 @@ myLocation <- c(min(track1_3$position_long), min(track1_3$position_lat),
 myMap <- get_stamenmap(bbox=myLocation, maptype="terrain", crop=TRUE, zoom = 13)  # Kartenimport
 
 ggmap(myMap) +
-  geom_point(data = filter(full, enhanced_speed_kmh > 3), 
+  geom_point(data = filter(track1_3, enhanced_speed_kmh > 3), 
              aes(position_long,position_lat, col = enhanced_speed_kmh)) +
   facet_wrap(~activity_ID) +
   labs(x = "\nLängengrad [°E]", y = "Breitengrad [°N]\n")
@@ -207,8 +226,16 @@ zf <- full_sf %>%
     )
 ```
 
+#behaviour pattern
 
-# Multimodel Inference
+```{r}
+
+```
+
+
+# model 
+
+Multimodel Inference
 
 ```{r}
 if(!require(MuMIn)){install.packages("MuMIn")}
@@ -233,14 +260,26 @@ down_param <- allmodels$`zf$hightdiff_down`[3]
 zf$time_estimated <- zf$distance *distance_param + zf$hightdiff_up * up_param + zf$hightdiff_down * down_param
 
 zf %>% 
-  select(activity_ID, time_measured = time, time_estimated) %>%
+  select(activity_ID, time_measured = time, time_estimated, distance, hightdiff_up, hightdiff_down) %>%
   gather(type, value, time_measured, time_estimated) %>%
-  ggplot(aes(activity_ID, value, col = type)) +
+  ggplot(aes(distance, value, col = type)) +
   geom_point() +
+  geom_line() +
+  geom_text(aes(y = max(zf$time) + 15, label = paste("Dist:", round(distance/1000,1), "km"))) +
+  geom_text(aes(y = max(zf$time) + 10, label = paste("Aufw.:", round(hightdiff_up,0), "m"))) +
+  geom_text(aes(y = max(zf$time) + 5, label = paste("Abw.:", -round(hightdiff_down,0), "m"))) +
   theme_bw() +
   labs(x = "\nAktivitäts-ID", y = "Zeitbedarf in min\n")
+
+zf %>% 
+  select(activity_ID, time_measured = time, time_estimated, distance, hightdiff_up, hightdiff_down) %>%
+  gather(type, value, time_measured, time_estimated) %>%
+  ggplot(aes(distance, value, col = type)) +
+  geom_point() +
+  geom_smooth()
 ```
 
+#validation
 
 
 ```{r}
