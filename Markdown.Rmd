@@ -28,12 +28,15 @@ remotes::install_github("grimbough/FITfileR")
 
 library(FITfileR)
 library(gdata)
+library(purrr)
+library(base)
+
 
 ```
 
 # Import
 Alle Files mit Endung .fit aus dem R-Projektordner importieren und in ein einzelnes Data.frame zusammenführen. Alle anderen Data.frames löschen, sodass nur noch das gesamte DF im Workspace ist. Diverse Berechnungen müssen somit nur einmalig durchgeführt werden (timelag, Distanz usw.).
-```{r}
+```{r message=TRUE, warning=FALSE}
 myfiles <- list.files(".",pattern = "*.fit")
 
 for (i in 1:length(myfiles)) {
@@ -41,8 +44,11 @@ for (i in 1:length(myfiles)) {
   assign(varName, as.data.frame(records(readFitFile(myfiles[i]))))
 }
 
+#generate dataframe full with all data
+
 full <- mget(ls(pattern="temp")) %>%
               bind_rows()
+
 keep(full, sure = TRUE)
 head(full)
 ```
@@ -52,7 +58,7 @@ head(full)
 Geschwindigkeit und Timelags berechnen. Aktivitäten müssen gruppiert werden können. Dies geschicht über die "activity_ID", welche das Data-Frame in einzelne Tracks segmentiert.
 Für die Distanz zwischen zwei GPS-Fixes muss ein SF-Objekt erstellt werden und in das Format CH1903+ LV95 umgewandelt werden. Daraus lässt sich die Distanz berechnen.
 ```{r}
-# Geschwindigkeit in kmh
+# Geschwindigkeit von m/s in kmh
 full$enhanced_speed_kmh <- full$enhanced_speed *3.6
 # Timelag berechnen
 full$timelag <- as.integer(difftime(full$timestamp, lag(full$timestamp)))
@@ -62,7 +68,7 @@ full$activity_conter[1] <- TRUE  # ID 1 = TRUE, da die dies die Aktivität numme
 
 full$activity_ID <- cumsum(full$activity_conter == TRUE)  # Erstellt die AktivitätsID basierend auf Conter
 
-# In SF umwandeln => Um die Euclidian distance zu berechnen
+# In SF umwandeln => Um die Euclidian distance zu berechnen, crs= 4326 -> RS used by Google Earth
 full_sf <- st_as_sf(full, coords = c("position_long", "position_lat"),
          crs = 4326)
 
@@ -86,6 +92,8 @@ full_sf <- full_sf %>%
     hightdiff_down = ifelse(hightdiff < 0, hightdiff, 0)
   )
 
+#compare distance and steplength_sum
+
 full_sf %>%
   filter(activity_ID == 1) %>%
   ggplot() +
@@ -94,7 +102,9 @@ full_sf %>%
   theme_bw() +
   labs(x = "\nUhrzeit in hh:mm", y = "Distanz in m\n")
 
-max(full_sf$distance) / max(full_sf$steplenght_sum)
+#max. value distance / max value calculated steplength_sum
+max(full_sf$distance) / max(full_sf$steplenght_sum) # close to 1 (0.988)
+
 ```
 Die Grafik zeigt, dass die Distanz aus dem .fit-File sehr nahe an der berechneten Distanz liegt.
 Die .fit-Datei gibt eine um 1.1 % tiefere Distanz an als die über die GPS-Fixes berechnete Distanz.
@@ -233,4 +243,7 @@ zf %>%
 
 
 
-# Test Dionis
+```{r}
+
+```
+
