@@ -60,9 +60,24 @@ head(full)
 
 ```{r}
 #digital elevation model to verify altitude for each GPS location
+# ATTENTION: This part of the code only works, if seperate R-Script "import.multiple.DHM.R"
+#  was runned bevore => Conttains the elevation for every 2x2 m point in canton of SG.
+# DHM contains all even points in x and y => round
+full_sf$x_round <- 2 * round(full_sf$x/2) + 1  
+full_sf$y_round <- 2 * round(full_sf$y/2) + 1
 
+# filter DHM source (other huge data.frame by specific research area)
+DHM_filter <- data.matrix %>%
+  filter(x_round > min(full_sf$x_round) - 2,
+         x_round < max(full_sf$x_round) + 2,
+         y_round > min(full_sf$y_round) - 2,
+         y_round < max(full_sf$y_round) + 2)
 
+# Join elevation 
+full_sf_join <- left_join(full_sf, DHM_filter, by = c(x_round, y_round))
 
+data.matrix$x_round
+full_sf$x_round
 
 ```
 

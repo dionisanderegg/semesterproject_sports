@@ -1,5 +1,7 @@
 library(raster)
 library(tidyverse)
+library(tiff)
+library(sf)
 
 DHM_URL <- read_csv("DHM_SG.csv", col_names = FALSE)
 
@@ -10,13 +12,8 @@ for(i in 1:length(DHM_URL$X1)){
 
 m <- do.call(merge, r.list)
 
-plot(m)
-
+# Takes up to 5 hours...! => Extract only the points in df "full" possible?
 data.matrix <- as.data.frame(rasterToPoints(m))
 
-test <- data.matrix[1:100,]
-
-write_csv(data.matrix, file = "DHM.csv")
-
-
-is.data.frame(test)
+names(data.matrix)[names(data.matrix) == "x"] <- "x_round"
+names(data.matrix)[names(data.matrix) == "y"] <- "y_round"
