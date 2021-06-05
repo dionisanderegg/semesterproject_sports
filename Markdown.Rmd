@@ -134,19 +134,16 @@ full_sf <- full_sf %>%
 #compare distance and steplength_sum
 
 full_sf %>%
-  filter(activity_ID == 5) %>%
+  filter(activity_ID < 7) %>%
   ggplot() +
-  geom_point(aes(timestamp, distance), col = "blue") +
-  geom_point(aes(timestamp, steplenght_sum), col = "red") +
+  geom_point(aes(timestamp, distance, col = "measurement")) +
+  geom_point(aes(timestamp, steplenght_sum, col = "euclidian distance")) +
   theme_bw() +
-  labs(x = "\nUhrzeit in hh:mm", y = "Distanz in m\n")
-
-#max. value distance / max value calculated steplength_sum
-max(full_sf$distance) / max(full_sf$steplenght_sum) # close to 1 (0.988)
-
+  theme(legend.position = "bottom") +
+  facet_wrap(~activity_ID, scales = "free") +
+  labs(x = "\n time", y = "distance in meters\n")
 ```
 Die Grafik zeigt, dass die Distanz aus dem .fit-File sehr nahe an der berechneten Distanz liegt.
-Die .fit-Datei gibt eine um 1.1 % tiefere Distanz an als die über die GPS-Fixes berechnete Distanz.
 Weiter mit den Daten von der .fit Datei???
 
 
@@ -260,6 +257,7 @@ zf <- full_sf %>%
     )
 ```
 
+
 # 5 Behaviour pattern
 
 ## 5.1 Pauses and Movement
@@ -273,27 +271,49 @@ zf <- full_sf %>%
 
 # model 
 
-Multimodel Inference
+## Model basis => Segmeentation of all Tracks 
+```{r}
+full_sf_min <- full_sf %>%
+  st_drop_geometry() %>%
+  group_by("time" = cut(timestamp, "1 min")) %>%
+  summarise(
+    distance = sum(steplength, na.rm = TRUE),
+    hightdiff_up = sum(hightdiff_up, na.rm = TRUE),
+    hightdiff_down = sum(hightdiff_down, na.rm = TRUE),
+    hightdiff_balance = hightdiff_up + hightdiff_down,
+    time_eff = sum(timelag, na.rm = TRUE),
+    mean_pace = time_eff / distance * 1000 / 60
+  ) %>%
+  mutate(vertical_direction = ifelse(hightdiff_balance > 2, "up",
+                                      ifelse(hightdiff_balance < -2, "down",
+                                             "horizontal")))
+
+full_sf_min <- full_sf_min %>%
+  filter(time_eff < 100, time_eff > 0, mean_pace < 25)
+```
+
+
+Multimodel Inference for zf.model
 
 ```{r}
 if(!require(MuMIn)){install.packages("MuMIn")}
 library(MuMIn)
 library(gridExtra)
 
-global.model <- lm(zf$time ~ 0 + zf$distance + zf$hightdiff_up + zf$hightdiff_down, data=zf)
+zf.model <- lm(zf$time ~ 0 + zf$distance + zf$hightdiff_up + zf$hightdiff_down, data=zf)
 options(na.action="na.fail")
-allmodels <- dredge(global.model)
-allmodels
+allmodels.zf <- dredge(zf.model)
+allmodels.zf
 
-importance(allmodels)
+importance(allmodels.zf)
 
-avgmodel<-model.avg(get.models(dredge(global.model,rank="AICc"),subset=TRUE))
-summary(avgmodel)
+avgmodel.zf<-model.avg(get.models(dredge(zf.model,rank="AICc"),subset=TRUE))
+summary(avgmodel.zf)
 
 # Komischerweise ist das "drittbeste Modell" einiges genauer als das beste Modell...
-distance_param <- allmodels$`zf$distance`[3]
-up_param <- allmodels$`zf$hightdiff_up`[3]
-down_param <- allmodels$`zf$hightdiff_down`[3]
+distance_param <- allmodels.zf$`zf$distance`[3]
+up_param <- allmodels.zf$`zf$hightdiff_up`[3]
+down_param <- allmodels.zf$`zf$hightdiff_down`[3]
 
 zf$time_estimated <- zf$distance *distance_param + zf$hightdiff_up * up_param + zf$hightdiff_down * down_param
 
@@ -315,6 +335,73 @@ zf %>%
   ggplot(aes(distance, value, col = type)) +
   geom_point() +
   geom_smooth()
+```
+
+
+Multimodel Inference for min.model
+
+```{r}
+min.model <- lm(time_eff/60 ~ 0 + distance + hightdiff_up + hightdiff_down, data=full_sf_min)
+options(na.action="na.fail")
+allmodels.min <- dredge(min.model)
+allmodels.min   # model[1] makes more sence than zf.model!
+# Interpretation: Per meter of Distance 0.00461 minutes, per meter up 0.035 minutes
+#  per meter down 0.01 minutes (negative because hightdiff_down is negative!).
+
+importance(allmodels.min)
+
+avgmodel.min<-model.avg(get.models(dredge(min.model,rank="AICc"),subset=TRUE))
+summary(avgmodel.min) # All predictors are highli significant!
+
+# Komischerweise ist das "drittbeste Modell" einiges genauer als das beste Modell...
+distance_param_min <- allmodels.min$distance[1]
+up_param_min <- allmodels.min$hightdiff_up[1]
+down_param_min <- allmodels.min$hightdiff_down[1]
+
+zf$time_estimated_min <- zf$distance *distance_param_min + zf$hightdiff_up * up_param_min + zf$hightdiff_down * down_param_min
+
+zf %>% 
+  select(activity_ID, time_measured = time, time_estimated, time_estimated_min, distance, hightdiff_up, hightdiff_down) %>%
+  gather(type, value, time_measured, time_estimated, time_estimated_min) %>%
+  ggplot(aes(activity_ID, value, col = type)) +
+  geom_point() +
+  geom_line() +
+  theme_bw() +
+  labs(x = "\nAktivitäts-ID", y = "Zeitbedarf in min\n")
+
+zf %>% 
+  select(activity_ID, time_measured = time, time_estimated_min, distance, hightdiff_up, hightdiff_down) %>%
+  gather(type, value, time_measured, time_estimated_min) %>%
+  ggplot(aes(distance, value, col = type)) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  theme_bw()
+# It seems that the model underestimates time requirement for long distances, and overestimates
+#  for short distances => Exhaution!
+
+# Show the pace-dependency of the hightdifference up
+full_sf_min %>%
+  filter(vertical_direction == "up") %>%
+  ggplot(aes(hightdiff_up, mean_pace)) +
+  geom_point() +
+  geom_smooth(span = 1) +
+  ylim(4.3,14.5) +
+  theme_bw() +
+  labs(x = "\nhightdifference up per minute of running time", y = "mean pace per minute of running time\n")
+
+full_sf_min %>%
+  filter(vertical_direction == "down") %>%
+  ggplot(aes(-hightdiff_down, mean_pace)) +
+  geom_point() +
+  geom_smooth(span = 1) +
+  ylim(4.4,11) +
+  xlim(0,38) +
+  theme_bw() +
+  labs(x = "\nhightdifference down per minute of running time", y = "mean pace per minute of running time\n")
+
+ggplot(full_sf_min, aes(mean_pace, hightdiff_down)) +
+  geom_point()
+
 ```
 
 #validation
