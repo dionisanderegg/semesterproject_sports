@@ -86,7 +86,7 @@ full$activity_ID <- cumsum(full$activity_conter == TRUE)  # Erstellt die Aktivit
 
 ```
 
-### 1.4.2 calculate speed
+### 1.4.2 calculate speed / add rollmean function
 ```{r}
 # Geschwindigkeit von m/s in kmh
 full$enhanced_speed_kmh <- full$enhanced_speed *3.6
@@ -101,15 +101,15 @@ full_sf <- st_transform(full_sf, crs = 2056)
 options(digits = 3)
 
 # N und E Koordinaten aus der Geometrie ziehen
-full_sf$N <- st_coordinates(full_sf$geometry)[,1]
-full_sf$E <- st_coordinates(full_sf$geometry)[,2]
+full_sf$x <- st_coordinates(full_sf$geometry)[,1]
+full_sf$y <- st_coordinates(full_sf$geometry)[,2]
 
 # Euclidian steplength berechnen
 
 full_sf <- full_sf %>%
   group_by(activity_ID) %>%
   mutate(
-    steplength = sqrt((E - lead(E))^2 + (N - lead(N))^2),
+    steplength = sqrt((x - lead(x))^2 + (y - lead(y))^2),
     steplenght_sum = cumsum(replace_na(steplength,0)),
     hightdiff = lead(enhanced_altitude) - enhanced_altitude,
     hightdiff_up = ifelse(hightdiff > 0, hightdiff, 0),
@@ -155,6 +155,12 @@ full_long %>%
 ```
 
 In der Tendenz lässt sich visuell eine Abnahme der Geschwindigkeit und eine Zunahme der Herzfrequenz mit einem Höhenanstieg erkennen. Ausserdem ist eine Pause von ca. 10 minuten duetlich am Geschwindigkeitdiagramm zu erkennen.
+
+## 2.1 General overview => Lenths, times, hightdifferences...
+
+## 2.2 Analyse some tracks and show them on map (interactive?)
+
+## 2.3 Possible outliers and evaluation area (scope)?
 
 # 3 Map visualizations
 
@@ -241,7 +247,9 @@ zf <- full_sf %>%
 
 # 5 Behaviour pattern
 
-##
+## 5.1 Pauses and Movement
+
+## 5.2 Heart rates
 
 ```{r}
 
