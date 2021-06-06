@@ -30,8 +30,7 @@ remotes::install_github("grimbough/FITfileR")
 
 library(FITfileR)
 library(gdata)
-
-
+library(plotly)
 ```
 
 ## 1.2 Import data
@@ -75,10 +74,6 @@ DHM_filter <- data.matrix %>%
 
 # Join elevation 
 full_sf_join <- left_join(full_sf, DHM_filter, by = c(x_round, y_round))
-
-data.matrix$x_round
-full_sf$x_round
-
 ```
 
 
@@ -91,36 +86,53 @@ For the distance between two GPS fixes a SF object must be created and converted
 ### 1.4.1 calculate timelag
 
 ```{r}
-# Timelag berechnen
+# Calculate timelag
 full$timelag <- as.integer(difftime(full$timestamp, lag(full$timestamp)))
-# Aktivitäts ID erstellen => Wichtig für Gruppieren etc.
-full$activity_conter <- ifelse(abs(full$timelag) > 3600, TRUE, FALSE)   # Neue ID wenn mehr als 1 Stunde timelag
-full$activity_conter[1] <- TRUE  # ID 1 = TRUE, da die dies die Aktivität Nummer 1 ist
-
-full$activity_ID <- cumsum(full$activity_conter == TRUE)  # Erstellt die AktivitätsID basierend auf Conter
+# activity_ID (new ID if timelag > 1 hour)
+full$activity_conter <- ifelse(abs(full$timelag) > 3600, TRUE, FALSE) 
+full$activity_conter[1] <- TRUE  # ID 1 = TRUE, as this is activity one
+full$activity_ID <- cumsum(full$activity_conter == TRUE)  # create acitiviy_ID based on counter
 
 ```
 
 ### 1.4.2 calculate speed / add rollmean function
 ```{r}
-# Geschwindigkeit von m/s in kmh
+# speed from tracker in km/h
 full$enhanced_speed_kmh <- full$enhanced_speed *3.6
 
+# smooth speed and heart rate by rollmenans
+full <- full %>%
+  group_by(activity_ID) %>%
+  mutate(
+    enhanced_speed_03 = rollmean(enhanced_speed_kmh, k = 3, fill = NA, allign = "left"),
+    enhanced_speed_05 = rollmean(enhanced_speed_kmh, k = 5, fill = NA, allign = "left"),
+    enhanced_speed_10 = rollmean(enhanced_speed_kmh, k = 10, fill = NA, allign = "left"),
+    enhanced_speed_15 = rollmean(enhanced_speed_kmh, k = 15, fill = NA, allign = "left"),
+    enhanced_speed_30 = rollmean(enhanced_speed_kmh, k = 30, fill = NA, allign = "left"),
+    enhanced_speed_60 = rollmean(enhanced_speed_kmh, k = 60, fill = NA, allign = "left")
+  )
 
-# In SF umwandeln => Um die Euclidian distance zu berechnen, crs= 4326 -> RS used by Google Earth
+# How "k-value" affects the variety in speed:
+full %>%
+  filter(activity_ID == 2) %>%
+  gather(smoother, speed, enhanced_speed_kmh, enhanced_speed_03 : enhanced_speed_60) %>%
+  ggplot(aes(timestamp, speed, col = smoother)) +
+  geom_line() +
+  theme_bw()
+ggplotly()
+
+# Create sf and convert to CH1903+ LV95 to calculate the euculidian distance
 full_sf <- st_as_sf(full, coords = c("position_long", "position_lat"),
          crs = 4326)
-
-# Konvertieren zu CH1903+ LV95
 full_sf <- st_transform(full_sf, crs = 2056)
+
 options(digits = 3)
 
-# N und E Koordinaten aus der Geometrie ziehen
+# get x and y coordinates from sf geometry
 full_sf$x <- st_coordinates(full_sf$geometry)[,1]
 full_sf$y <- st_coordinates(full_sf$geometry)[,2]
 
-# Euclidian steplength berechnen
-
+# calculate Euclidian steplength
 full_sf <- full_sf %>%
   group_by(activity_ID) %>%
   mutate(
@@ -130,6 +142,32 @@ full_sf <- full_sf %>%
     hightdiff_up = ifelse(hightdiff > 0, hightdiff, 0),
     hightdiff_down = ifelse(hightdiff < 0, hightdiff, 0)
   )
+
+# How altitude differences up affect speeds
+full_sf %>%
+  filter(activity_ID == 2) %>%
+  ggplot(aes(timestamp, enhanced_speed_15)) +
+  geom_line()+
+  geom_line(aes(y = rollmean(hightdiff_up, k = 15, fill = NA, allign = "left")*10), col = "green3") +
+  scale_y_continuous(
+    "speed\n", 
+    sec.axis = sec_axis(~ . * 0.1, name = "hight difference\n")
+  )+
+  theme_bw()
+ggplotly()
+
+# How altitude differences down affect speeds
+full_sf %>%
+  filter(activity_ID == 2) %>%
+  ggplot(aes(timestamp, enhanced_speed_15)) +
+  geom_line()+
+  geom_line(aes(y = rollmean(-hightdiff_down, k = 15, fill = NA, allign = "left")*10), col = "green4") +
+  scale_y_continuous(
+    "speed\n", 
+    sec.axis = sec_axis(~ . * 0.1, name = "hight difference\n")
+  ) +
+  theme_bw()
+ggplotly()
 
 #compare distance and steplength_sum
 
