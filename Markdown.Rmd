@@ -62,18 +62,39 @@ head(full)
 # ATTENTION: This part of the code only works, if seperate R-Script "import.multiple.DHM.R"
 #  was runned bevore => Conttains the elevation for every 2x2 m point in canton of SG.
 # DHM contains all even points in x and y => round
-full_sf$x_round <- 2 * round(full_sf$x/2) + 1  
-full_sf$y_round <- 2 * round(full_sf$y/2) + 1
+full_sf$x_round <- as.numeric(2 * round(full_sf$x/2) + 1)  
+full_sf$y_round <- as.numeric(2 * round(full_sf$y/2) + 1)
 
 # filter DHM source (other huge data.frame by specific research area)
 DHM_filter <- data.matrix %>%
-  filter(x_round > min(full_sf$x_round) - 2,
-         x_round < max(full_sf$x_round) + 2,
-         y_round > min(full_sf$y_round) - 2,
-         y_round < max(full_sf$y_round) + 2)
+  filter(x_round > min(full_sf$x_round, na.rm = TRUE) - 2,
+         x_round < max(full_sf$x_round, na.rm = TRUE) + 2,
+         y_round > min(full_sf$y_round, na.rm = TRUE) - 2,
+         y_round < max(full_sf$y_round, na.rm = TRUE) + 2)
 
 # Join elevation 
-full_sf_join <- left_join(full_sf, DHM_filter, by = c(x_round, y_round))
+full_sf_join <- left_join(full_sf, DHM_filter, by = c("x_round", "y_round"))
+full_sf_join$altitude_diff <- full_sf_join$layer - full_sf_join$enhanced_altitude
+
+# Test accuracy of elevation measurement
+full_sf_join %>%
+  gather(source, value, enhanced_altitude, layer) %>%
+  filter(activity_ID < 10) %>%
+  ggplot(aes(timestamp, value, col = source)) +
+  geom_line() +
+  facet_wrap(~activity_ID, scales = "free") +
+  theme_bw()+
+  labs(x = "\ntimestamp hh:mm", y = "altitude measurement m a.s.l.\n")+
+  theme(legend.position = "bottom")
+
+full_sf_join %>%
+  filter(activity_ID < 10) %>%
+  ggplot(aes(timestamp, altitude_diff)) +
+  geom_line() +
+  facet_wrap(~activity_ID, scales = "free") +
+  theme_bw() +
+  labs(x = "\ntimestamp hh:mm", y = "altitude difference (DEM - Tracker) in m\n")
+
 ```
 
 
