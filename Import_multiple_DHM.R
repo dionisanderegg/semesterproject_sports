@@ -17,3 +17,5 @@ data.matrix <- as.data.frame(rasterToPoints(m))
 
 names(data.matrix)[names(data.matrix) == "x"] <- "x_round"
 names(data.matrix)[names(data.matrix) == "y"] <- "y_round"
+
+data.matrix[]
