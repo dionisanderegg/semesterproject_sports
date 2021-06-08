@@ -31,6 +31,11 @@ remotes::install_github("grimbough/FITfileR")
 library(FITfileR)
 library(gdata)
 library(plotly)
+
+#Packages for DEM import and handling
+library(raster)
+library(tiff)
+
 ```
 
 ## 1.2 Import data
@@ -55,49 +60,6 @@ keep(full, sure = TRUE)
 #check full
 head(full)
 ```
-## 1.3 evaluate altitude with DEM 
-
-```{r}
-#digital elevation model to verify altitude for each GPS location
-# ATTENTION: This part of the code only works, if seperate R-Script "import.multiple.DHM.R"
-#  was runned bevore => Conttains the elevation for every 2x2 m point in canton of SG.
-# DHM contains all even points in x and y => round
-full_sf$x_round <- as.numeric(2 * round(full_sf$x/2) + 1)  
-full_sf$y_round <- as.numeric(2 * round(full_sf$y/2) + 1)
-
-# filter DHM source (other huge data.frame by specific research area)
-DHM_filter <- data.matrix %>%
-  filter(x_round > min(full_sf$x_round, na.rm = TRUE) - 2,
-         x_round < max(full_sf$x_round, na.rm = TRUE) + 2,
-         y_round > min(full_sf$y_round, na.rm = TRUE) - 2,
-         y_round < max(full_sf$y_round, na.rm = TRUE) + 2)
-
-# Join elevation 
-full_sf_join <- left_join(full_sf, DHM_filter, by = c("x_round", "y_round"))
-full_sf_join$altitude_diff <- full_sf_join$layer - full_sf_join$enhanced_altitude
-
-# Test accuracy of elevation measurement
-full_sf_join %>%
-  gather(source, value, enhanced_altitude, layer) %>%
-  filter(activity_ID < 10) %>%
-  ggplot(aes(timestamp, value, col = source)) +
-  geom_line() +
-  facet_wrap(~activity_ID, scales = "free") +
-  theme_bw()+
-  labs(x = "\ntimestamp hh:mm", y = "altitude measurement m a.s.l.\n")+
-  theme(legend.position = "bottom")
-
-full_sf_join %>%
-  filter(activity_ID < 10) %>%
-  ggplot(aes(timestamp, altitude_diff)) +
-  geom_line() +
-  facet_wrap(~activity_ID, scales = "free") +
-  theme_bw() +
-  labs(x = "\ntimestamp hh:mm", y = "altitude difference (DEM - Tracker) in m\n")
-
-```
-
-
 
 ## 1.4 add variables 
 
@@ -204,6 +166,96 @@ full_sf %>%
 ```
 Die Grafik zeigt, dass die Distanz aus dem .fit-File sehr nahe an der berechneten Distanz liegt.
 Weiter mit den Daten von der .fit Datei???
+
+## 1.3 evaluate altitude with DEM => After creating full_sf!
+
+```{r}
+##  digital elevation model to verify altitude for each GPS location
+#    we only import the necesary data now!
+
+# Create a Dataframe containing all position (floor-rounded to 1km) as information source for required DHM-rasters
+DHM_rasters <- data.frame(
+  x = floor(full_sf$x / 1000),
+  y = floor(full_sf$y / 1000)
+)
+# There are NA's when GPS-Position wasn't found (Activity_ID = 19) => Exclude them!
+DHM_rasters <- filter(DHM_rasters, x > 0)
+
+# Only keep the unique combinations for rounded x and y
+DHM_rasters <- unique(DHM_rasters[c("x", "y")])
+
+# Create the Download-Links of the tiff-files from Swisstopo: 
+#  Sometimes data is from 2020, sometimes from 2019. Links aren't the same. So every combination has to be
+#  produced for 2019 data and 2020 data.
+DHM_URL <- c(
+  paste("https://data.geo.admin.ch/ch.swisstopo.swissalti3d/swissalti3d_2019_", DHM_rasters$x, 
+        "-", DHM_rasters$y, "/swissalti3d_2019_", DHM_rasters$x, "-", DHM_rasters$y, 
+        "_2_2056_5728.tif", sep = ""),
+  paste("https://data.geo.admin.ch/ch.swisstopo.swissalti3d/swissalti3d_2020_", DHM_rasters$x, 
+        "-", DHM_rasters$y, "/swissalti3d_2020_", DHM_rasters$x, "-", DHM_rasters$y,
+        "_2_2056_5728.tif", sep = ""))
+
+# Create a data.frame for join later...
+DHM_URL <- as.data.frame(DHM_URL)
+
+# Read all available DEM-sources for whole Switzerland
+DHM_full <- read_csv("DHM_CH.csv", col_names = "DHM_URL")
+
+# Keep only DEM-sources, which are available in the source DHM_full (wohle Switzerland)
+#  This ensures that the correct link (2019 or 2020) is chosen from DHM_full
+DHM_required <- inner_join(DHM_URL, DHM_full)
+
+# Now import all the required URL's as raster-list
+r.list <- list()
+for(i in 1:length(DHM_required$DHM_URL)){  
+  r.list[[i]] <- raster(DHM_required$DHM_URL[i])  
+} 
+
+# Create a Rasterlayer from raster-list
+m <- do.call(merge, r.list)
+
+# Visialize imported data
+plot(m)  # This should exactly cover the tracks used until now. 
+# Reading of other tracks all over switzerland will result in the import of the required rasters above!! :)
+
+# Extract elevation information from rasterlayer
+data.matrix <- as.data.frame(rasterToPoints(m))
+
+# Create identical names for join:
+names(data.matrix)[names(data.matrix) == "x"] <- "x_round"
+names(data.matrix)[names(data.matrix) == "y"] <- "y_round"
+
+# create rounded x and y as join-key => every two meters, always odd values!
+full_sf$x_round <- as.numeric(2 * round(full_sf$x/2) + 1)  
+full_sf$y_round <- as.numeric(2 * round(full_sf$y/2) + 1)
+
+
+# Join elevation 
+full_sf_join <- left_join(full_sf, data.matrix, by = c("x_round", "y_round"))
+
+# Calculate altitide difference between pressure measurement and DHM layer.
+full_sf_join$altitude_diff <- full_sf_join$layer - full_sf_join$enhanced_altitude
+
+# Test accuracy of elevation measurement
+full_sf_join %>%
+  gather(source, value, enhanced_altitude, layer) %>%
+  filter(activity_ID < 10) %>%
+  ggplot(aes(timestamp, value, col = source)) +
+  geom_line() +
+  facet_wrap(~activity_ID, scales = "free") +
+  theme_bw()+
+  labs(x = "\ntimestamp hh:mm", y = "altitude measurement m a.s.l.\n")+
+  theme(legend.position = "bottom")
+
+full_sf_join %>%
+  filter(activity_ID < 10) %>%
+  ggplot(aes(timestamp, altitude_diff)) +
+  geom_line() +
+  facet_wrap(~activity_ID, scales = "free") +
+  theme_bw() +
+  labs(x = "\ntimestamp hh:mm", y = "altitude difference (DEM - Tracker) in m\n")
+
+```
 
 
 # 2 Explorative data analysis 
