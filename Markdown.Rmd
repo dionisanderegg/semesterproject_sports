@@ -30,7 +30,11 @@ remotes::install_github("grimbough/FITfileR")
 
 library(FITfileR)
 library(gdata)
+library(plotly)
 
+#Packages for DEM import and handling
+library(raster)
+library(tiff)
 
 ```
 
@@ -59,21 +63,6 @@ keep(full, sure = TRUE)
 #check full
 head(full)
 ```
-## 1.3 evaluate altitude with DEM 
-
-```{r}
-#digital elevation model to verify altitude for each GPS location
-
-
-if(!require(arc2r)){remotes::install_github("arc2r/arc2r")}
-
-#R-script
-#wird noch angepasst
-
-
-
-```
-
 
 
 ## 1.4 add variables 
@@ -84,65 +73,42 @@ For the distance between two GPS fixes a SF object must be created and converted
 ### 1.4.1 calculate timelag
 
 ```{r}
-# Timelag berechnen
+# Calculate timelag
 full$timelag <- as.integer(difftime(full$timestamp, lag(full$timestamp)))
-# Aktivitäts ID erstellen => Wichtig für Gruppieren etc.
-full$activity_conter <- ifelse(abs(full$timelag) > 3600, TRUE, FALSE)   # Neue ID wenn mehr als 1 Stunde timelag
-full$activity_conter[1] <- TRUE  # ID 1 = TRUE, da die dies die Aktivität Nummer 1 ist
-
-full$activity_ID <- cumsum(full$activity_conter == TRUE)  # Erstellt die AktivitätsID basierend auf Conter
+# activity_ID (new ID if timelag > 1 hour)
+full$activity_conter <- ifelse(abs(full$timelag) > 3600, TRUE, FALSE) 
+full$activity_conter[1] <- TRUE  # ID 1 = TRUE, as this is activity one
+full$activity_ID <- cumsum(full$activity_conter == TRUE)  # create acitiviy_ID based on counter
 
 ```
 
-### 1.4.2 calculate speed
+### 1.4.2 calculate speed / add rollmean function
 ```{r}
-# Geschwindigkeit von m/s in kmh
+# speed from tracker in km/h
 full$enhanced_speed_kmh <- full$enhanced_speed *3.6
 
-
-# In SF umwandeln => Um die Euclidian distance zu berechnen, crs= 4326 -> RS used by Google Earth
-full_sf <- st_as_sf(full, coords = c("position_long", "position_lat"),
-         crs = 4326)
-
-# Konvertieren zu CH1903+ LV95
-full_sf <- st_transform(full_sf, crs = 2056)
-options(digits = 3)
-
-# N und E Koordinaten aus der Geometrie ziehen
-full_sf$N <- st_coordinates(full_sf$geometry)[,1]
-full_sf$E <- st_coordinates(full_sf$geometry)[,2]
-
-# Euclidian steplength berechnen
-
-full_sf <- full_sf %>%
+# smooth speed and heart rate by rollmenans
+full <- full %>%
   group_by(activity_ID) %>%
   mutate(
-    steplength = sqrt((E - lead(E))^2 + (N - lead(N))^2),
-    steplenght_sum = cumsum(replace_na(steplength,0)),
-    hightdiff = lead(enhanced_altitude) - enhanced_altitude,
-    hightdiff_up = ifelse(hightdiff > 0, hightdiff, 0),
-    hightdiff_down = ifelse(hightdiff < 0, hightdiff, 0)
+    enhanced_speed_03 = rollmean(enhanced_speed_kmh, k = 3, fill = NA, allign = "left"),
+    enhanced_speed_05 = rollmean(enhanced_speed_kmh, k = 5, fill = NA, allign = "left"),
+    enhanced_speed_10 = rollmean(enhanced_speed_kmh, k = 10, fill = NA, allign = "left"),
+    enhanced_speed_15 = rollmean(enhanced_speed_kmh, k = 15, fill = NA, allign = "left"),
+    enhanced_speed_30 = rollmean(enhanced_speed_kmh, k = 30, fill = NA, allign = "left"),
+    enhanced_speed_60 = rollmean(enhanced_speed_kmh, k = 60, fill = NA, allign = "left")
   )
 
-#compare distance and steplength_sum
+# How "k-value" affects the variety in speed:
+full %>%
+  filter(activity_ID == 2) %>%
+  gather(smoother, speed, enhanced_speed_kmh, enhanced_speed_03 : enhanced_speed_60) %>%
+  ggplot(aes(timestamp, speed, col = smoother)) +
+  geom_line() +
+  theme_bw()
+ggplotly()
 
-full_sf %>%
-  filter(activity_ID == 5) %>%
-  ggplot() +
-  geom_point(aes(timestamp, distance), col = "blue") +
-  geom_point(aes(timestamp, steplenght_sum), col = "red") +
-  theme_bw() +
-  labs(x = "\nUhrzeit in hh:mm", y = "Distanz in m\n")
-
-#max. value distance / max value calculated steplength_sum
-max(full_sf$distance) / max(full_sf$steplenght_sum) # close to 1 (0.988)
-
-```
-Die Grafik zeigt, dass die Distanz aus dem .fit-File sehr nahe an der berechneten Distanz liegt.
-Die .fit-Datei gibt eine um 1.1 % tiefere Distanz an als die über die GPS-Fixes berechnete Distanz.
-Weiter mit den Daten von der .fit Datei???
-
-###1.4.3 Rolling window (smoothen)
+###1.4.3 Rolling window (smoothen) (alissa)
 
 ```{r}
 
@@ -164,9 +130,160 @@ smoothing_window_6 <- rolling_window_function(6)
 
 #Specify a temporal windows v for in which to measure Euclidean distance
 
+# Create sf and convert to CH1903+ LV95 to calculate the euculidian distance
+full_sf <- st_as_sf(full, coords = c("position_long", "position_lat"),
+         crs = 4326)
+full_sf <- st_transform(full_sf, crs = 2056)
+
+options(digits = 3)
+
+# get x and y coordinates from sf geometry
+full_sf$x <- st_coordinates(full_sf$geometry)[,1]
+full_sf$y <- st_coordinates(full_sf$geometry)[,2]
+
+# calculate Euclidian steplength
+full_sf <- full_sf %>%
+  group_by(activity_ID) %>%
+  mutate(
+    steplength = sqrt((x - lead(x))^2 + (y - lead(y))^2),
+    steplenght_sum = cumsum(replace_na(steplength,0)),
+    hightdiff = lead(enhanced_altitude) - enhanced_altitude,
+    hightdiff_up = ifelse(hightdiff > 0, hightdiff, 0),
+    hightdiff_down = ifelse(hightdiff < 0, hightdiff, 0)
+  )
+
+# How altitude differences up affect speeds
+full_sf %>%
+  filter(activity_ID == 2) %>%
+  ggplot(aes(timestamp, enhanced_speed_15)) +
+  geom_line()+
+  geom_line(aes(y = rollmean(hightdiff_up, k = 15, fill = NA, allign = "left")*10), col = "green3") +
+  scale_y_continuous(
+    "speed\n", 
+    sec.axis = sec_axis(~ . * 0.1, name = "hight difference\n")
+  )+
+  theme_bw()
+ggplotly()
+
+# How altitude differences down affect speeds
+full_sf %>%
+  filter(activity_ID == 2) %>%
+  ggplot(aes(timestamp, enhanced_speed_15)) +
+  geom_line()+
+  geom_line(aes(y = rollmean(-hightdiff_down, k = 15, fill = NA, allign = "left")*10), col = "green4") +
+  scale_y_continuous(
+    "speed\n", 
+    sec.axis = sec_axis(~ . * 0.1, name = "hight difference\n")
+  ) +
+  theme_bw()
+ggplotly()
+
+#compare distance and steplength_sum
+
+full_sf %>%
+  filter(activity_ID < 7) %>%
+  ggplot() +
+  geom_point(aes(timestamp, distance, col = "measurement")) +
+  geom_point(aes(timestamp, steplenght_sum, col = "euclidian distance")) +
+  theme_bw() +
+  theme(legend.position = "bottom") +
+  facet_wrap(~activity_ID, scales = "free") +
+  labs(x = "\n time", y = "distance in meters\n")
 ```
+Die Grafik zeigt, dass die Distanz aus dem .fit-File sehr nahe an der berechneten Distanz liegt.
+Weiter mit den Daten von der .fit Datei???
 
 
+
+## 1.3 evaluate altitude with DEM => After creating full_sf!
+
+```{r}
+##  digital elevation model to verify altitude for each GPS location
+#    we only import the necesary data now!
+
+# Create a Dataframe containing all position (floor-rounded to 1km) as information source for required DHM-rasters
+DHM_rasters <- data.frame(
+  x = floor(full_sf$x / 1000),
+  y = floor(full_sf$y / 1000)
+)
+# There are NA's when GPS-Position wasn't found (Activity_ID = 19) => Exclude them!
+DHM_rasters <- filter(DHM_rasters, x > 0)
+
+# Only keep the unique combinations for rounded x and y
+DHM_rasters <- unique(DHM_rasters[c("x", "y")])
+
+# Create the Download-Links of the tiff-files from Swisstopo: 
+#  Sometimes data is from 2020, sometimes from 2019. Links aren't the same. So every combination has to be
+#  produced for 2019 data and 2020 data.
+DHM_URL <- c(
+  paste("https://data.geo.admin.ch/ch.swisstopo.swissalti3d/swissalti3d_2019_", DHM_rasters$x, 
+        "-", DHM_rasters$y, "/swissalti3d_2019_", DHM_rasters$x, "-", DHM_rasters$y, 
+        "_2_2056_5728.tif", sep = ""),
+  paste("https://data.geo.admin.ch/ch.swisstopo.swissalti3d/swissalti3d_2020_", DHM_rasters$x, 
+        "-", DHM_rasters$y, "/swissalti3d_2020_", DHM_rasters$x, "-", DHM_rasters$y,
+        "_2_2056_5728.tif", sep = ""))
+
+# Create a data.frame for join later...
+DHM_URL <- as.data.frame(DHM_URL)
+
+# Read all available DEM-sources for whole Switzerland
+DHM_full <- read_csv("DHM_CH.csv", col_names = "DHM_URL")
+
+# Keep only DEM-sources, which are available in the source DHM_full (wohle Switzerland)
+#  This ensures that the correct link (2019 or 2020) is chosen from DHM_full
+DHM_required <- inner_join(DHM_URL, DHM_full)
+
+# Now import all the required URL's as raster-list
+r.list <- list()
+for(i in 1:length(DHM_required$DHM_URL)){  
+  r.list[[i]] <- raster(DHM_required$DHM_URL[i])  
+} 
+
+# Create a Rasterlayer from raster-list
+m <- do.call(merge, r.list)
+
+# Visialize imported data
+plot(m)  # This should exactly cover the tracks used until now. 
+# Reading of other tracks all over switzerland will result in the import of the required rasters above!! :)
+
+# Extract elevation information from rasterlayer
+data.matrix <- as.data.frame(rasterToPoints(m))
+
+# Create identical names for join:
+names(data.matrix)[names(data.matrix) == "x"] <- "x_round"
+names(data.matrix)[names(data.matrix) == "y"] <- "y_round"
+
+# create rounded x and y as join-key => every two meters, always odd values!
+full_sf$x_round <- as.numeric(2 * round(full_sf$x/2) + 1)  
+full_sf$y_round <- as.numeric(2 * round(full_sf$y/2) + 1)
+
+
+# Join elevation 
+full_sf_join <- left_join(full_sf, data.matrix, by = c("x_round", "y_round"))
+
+# Calculate altitide difference between pressure measurement and DHM layer.
+full_sf_join$altitude_diff <- full_sf_join$layer - full_sf_join$enhanced_altitude
+
+# Test accuracy of elevation measurement
+full_sf_join %>%
+  gather(source, value, enhanced_altitude, layer) %>%
+  filter(activity_ID < 10) %>%
+  ggplot(aes(timestamp, value, col = source)) +
+  geom_line() +
+  facet_wrap(~activity_ID, scales = "free") +
+  theme_bw()+
+  labs(x = "\ntimestamp hh:mm", y = "altitude measurement m a.s.l.\n")+
+  theme(legend.position = "bottom")
+
+full_sf_join %>%
+  filter(activity_ID < 10) %>%
+  ggplot(aes(timestamp, altitude_diff)) +
+  geom_line() +
+  facet_wrap(~activity_ID, scales = "free") +
+  theme_bw() +
+  labs(x = "\ntimestamp hh:mm", y = "altitude difference (DEM - Tracker) in m\n")
+
+```
 
 # 2 Explorative data analysis 
 
@@ -188,6 +305,12 @@ full_long %>%
 ```
 
 In der Tendenz lässt sich visuell eine Abnahme der Geschwindigkeit und eine Zunahme der Herzfrequenz mit einem Höhenanstieg erkennen. Ausserdem ist eine Pause von ca. 10 minuten duetlich am Geschwindigkeitdiagramm zu erkennen.
+
+## 2.1 General overview => Lenths, times, hightdifferences...
+
+## 2.2 Analyse some tracks and show them on map (interactive?)
+
+## 2.3 Possible outliers and evaluation area (scope)?
 
 # 3 Map visualizations
 
@@ -272,9 +395,14 @@ zf <- full_sf %>%
     )
 ```
 
+
 # 5 Behaviour pattern
 
-## 5.1 static / moving points
+
+
+
+
+
 
 ```{r}
 #Remove “static points”
@@ -351,27 +479,49 @@ tracks%>%
 
 # model 
 
-Multimodel Inference
+## Model basis => Segmeentation of all Tracks 
+```{r}
+full_sf_min <- full_sf %>%
+  st_drop_geometry() %>%
+  group_by("time" = cut(timestamp, "1 min")) %>%
+  summarise(
+    distance = sum(steplength, na.rm = TRUE),
+    hightdiff_up = sum(hightdiff_up, na.rm = TRUE),
+    hightdiff_down = sum(hightdiff_down, na.rm = TRUE),
+    hightdiff_balance = hightdiff_up + hightdiff_down,
+    time_eff = sum(timelag, na.rm = TRUE),
+    mean_pace = time_eff / distance * 1000 / 60
+  ) %>%
+  mutate(vertical_direction = ifelse(hightdiff_balance > 2, "up",
+                                      ifelse(hightdiff_balance < -2, "down",
+                                             "horizontal")))
+
+full_sf_min <- full_sf_min %>%
+  filter(time_eff < 100, time_eff > 0, mean_pace < 25)
+```
+
+
+Multimodel Inference for zf.model
 
 ```{r}
 if(!require(MuMIn)){install.packages("MuMIn")}
 library(MuMIn)
 library(gridExtra)
 
-global.model <- lm(zf$time ~ 0 + zf$distance + zf$hightdiff_up + zf$hightdiff_down, data=zf)
+zf.model <- lm(zf$time ~ 0 + zf$distance + zf$hightdiff_up + zf$hightdiff_down, data=zf)
 options(na.action="na.fail")
-allmodels <- dredge(global.model)
-allmodels
+allmodels.zf <- dredge(zf.model)
+allmodels.zf
 
-importance(allmodels)
+importance(allmodels.zf)
 
-avgmodel<-model.avg(get.models(dredge(global.model,rank="AICc"),subset=TRUE))
-summary(avgmodel)
+avgmodel.zf<-model.avg(get.models(dredge(zf.model,rank="AICc"),subset=TRUE))
+summary(avgmodel.zf)
 
 # Komischerweise ist das "drittbeste Modell" einiges genauer als das beste Modell...
-distance_param <- allmodels$`zf$distance`[3]
-up_param <- allmodels$`zf$hightdiff_up`[3]
-down_param <- allmodels$`zf$hightdiff_down`[3]
+distance_param <- allmodels.zf$`zf$distance`[3]
+up_param <- allmodels.zf$`zf$hightdiff_up`[3]
+down_param <- allmodels.zf$`zf$hightdiff_down`[3]
 
 zf$time_estimated <- zf$distance *distance_param + zf$hightdiff_up * up_param + zf$hightdiff_down * down_param
 
@@ -393,6 +543,73 @@ zf %>%
   ggplot(aes(distance, value, col = type)) +
   geom_point() +
   geom_smooth()
+```
+
+
+Multimodel Inference for min.model
+
+```{r}
+min.model <- lm(time_eff/60 ~ 0 + distance + hightdiff_up + hightdiff_down, data=full_sf_min)
+options(na.action="na.fail")
+allmodels.min <- dredge(min.model)
+allmodels.min   # model[1] makes more sence than zf.model!
+# Interpretation: Per meter of Distance 0.00461 minutes, per meter up 0.035 minutes
+#  per meter down 0.01 minutes (negative because hightdiff_down is negative!).
+
+importance(allmodels.min)
+
+avgmodel.min<-model.avg(get.models(dredge(min.model,rank="AICc"),subset=TRUE))
+summary(avgmodel.min) # All predictors are highli significant!
+
+# Komischerweise ist das "drittbeste Modell" einiges genauer als das beste Modell...
+distance_param_min <- allmodels.min$distance[1]
+up_param_min <- allmodels.min$hightdiff_up[1]
+down_param_min <- allmodels.min$hightdiff_down[1]
+
+zf$time_estimated_min <- zf$distance *distance_param_min + zf$hightdiff_up * up_param_min + zf$hightdiff_down * down_param_min
+
+zf %>% 
+  select(activity_ID, time_measured = time, time_estimated, time_estimated_min, distance, hightdiff_up, hightdiff_down) %>%
+  gather(type, value, time_measured, time_estimated, time_estimated_min) %>%
+  ggplot(aes(activity_ID, value, col = type)) +
+  geom_point() +
+  geom_line() +
+  theme_bw() +
+  labs(x = "\nAktivitäts-ID", y = "Zeitbedarf in min\n")
+
+zf %>% 
+  select(activity_ID, time_measured = time, time_estimated_min, distance, hightdiff_up, hightdiff_down) %>%
+  gather(type, value, time_measured, time_estimated_min) %>%
+  ggplot(aes(distance, value, col = type)) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  theme_bw()
+# It seems that the model underestimates time requirement for long distances, and overestimates
+#  for short distances => Exhaution!
+
+# Show the pace-dependency of the hightdifference up
+full_sf_min %>%
+  filter(vertical_direction == "up") %>%
+  ggplot(aes(hightdiff_up, mean_pace)) +
+  geom_point() +
+  geom_smooth(span = 1) +
+  ylim(4.3,14.5) +
+  theme_bw() +
+  labs(x = "\nhightdifference up per minute of running time", y = "mean pace per minute of running time\n")
+
+full_sf_min %>%
+  filter(vertical_direction == "down") %>%
+  ggplot(aes(-hightdiff_down, mean_pace)) +
+  geom_point() +
+  geom_smooth(span = 1) +
+  ylim(4.4,11) +
+  xlim(0,38) +
+  theme_bw() +
+  labs(x = "\nhightdifference down per minute of running time", y = "mean pace per minute of running time\n")
+
+ggplot(full_sf_min, aes(mean_pace, hightdiff_down)) +
+  geom_point()
+
 ```
 
 #validation
