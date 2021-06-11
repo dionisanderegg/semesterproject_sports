@@ -3,38 +3,54 @@ title: "Modelling the individual time requirement for sport activities using pre
 author: "Anderegg Dionis, Tophinke Alissa"
 date: " 04/07/2021"
 output: html_document
+bibliography: references.bib
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## Abstract 
+## Abstract
 
-In this semester project, sports tracks are analysed using GPS data from a Garmin device to identify specific behaviour patterns in outdoor sports (jogging, hiking, biking). Furthermore, the time required for sporting activities is modelled based on the individual fitness level, so that a user-specific forecast of the time required for sporting activities is possible. Model inputs are distance, altitude differences and the type of sport. 
+In this semester project, sports tracks are analysed using GPS data from a Garmin device to identify specific behaviour patterns in outdoor sports (jogging, hiking, biking). Furthermore, the time required for sporting activities is modelled based on the individual fitness level, so that a user-specific forecast of the time required for sporting activities is possible. Model inputs are distance, altitude differences and the type of sport.
 
 # Table of contents
-1. [Introduction](#introduction)
-2. [Methods](#methods)
+
+1.  [Introduction](#introduction)
+
+2.  [Methods](#methods)
 
     2.1 [Preparation of data](#subparagraph1)
-    
+
     2.2 [Evaluation of data](#subparagraph1)
-    
-3. [Results](#paragraph2)
 
-## 1 Introduction <a name="introduction"></a>
-Sport watches are a popular tool for monitor and regulate training activities among both professional and amateur athletes. Studies have already investigated for different sports watches (Apple, Coros, Garmin, Polar, and Suunto) how much the GPS data corresponds to reality authorsN / editorsN, +initials, +<joinchar>[@gilgen-ammannAccuracyDistanceRecordings2020] .
+3.  [Results](#paragraph2)
 
-## 2 Methods <a name="methods"></a>
+## 1 Introduction <a name="introduction"></a> {#introduction}
 
+Sport watches are a popular tool for monitor and regulate training activities among both professional and amateur athletes. Studies have already investigated for different sports watches (Apple, Coros, Garmin, Polar, and Suunto) how much the GPS data corresponds to reality \@@gilgen-ammann2020gilgen-ammannetal2020 .
+
+research questions  
+
+1. What are the most relevant influencing variables on the athlete's time requirement and speed in the analysed data. A descriptive data analysis of some sample tracks (number to be defined) will be done. 
+
+2. What behaviour patterns (e.g. pausing, moving) can be identified from the data? Are these behaviour patterns related to distance and altitude differences? Can patterns in behaviour be identified that are harmful to health? (Comparison of heart rate curve with recommended maximum heart rate). 
+
+3. How reliably can the time required for sporting activities be predicted based on a user's individual fitness level? A model is created from past GPS tracks, which is validated using a self-experiment (determine new route using “SchweizMobil”, model time requirement and check in a self-experiment). 
+
+## 2 Methods <a name="methods"></a> {#methods}
 
 ### 2.1 Preparation of data <a name="subparagraph1"></a>
-A dataset (data.frame) was generated using sports tracks data from a garmin-sportwatch by Dionis Anderegg. The data which can be obtained via the Garmin portal include spatio-temporal information (GPS-points, time,) and  heart-rates, which comes within the .fit format. The tracks are already divided into the corresponding type of sport "jogging", "hiking", "biking".
+
+A dataset (data.frame) was generated using sports tracks data from a garmin-sportwatch by Dionis Anderegg. The data which can be obtained via the Garmin portal include spatio-temporal information (GPS-points, time,) and heart-rates, which comes within the .fit format. The tracks are already divided into the corresponding type of sport "jogging", "hiking", "biking".
 
 ### 2.2 Evaluation of data <a name="subparagraph1"></a>
-To evaluate the data, a suitable digital elevation model DEM (e.g. DHM25) is  used in order to compare  the information of the .fit files. 
+
+The raw .fit file contains the following data: 
+Timestamp, position (Latitude and Longitude), distance, enhanced-speed (), enhanced-altitude, heart-rate (BPM), cadence (cadence is defined as the total number of steps per minute), fractional-cadence() 
+
+To evaluate the data, a suitable digital elevation model DEM (e.g. DHM25) is used in order to compare the information of the .fit files.
 
 ## 3 Results <a name="paragraph2"></a>
-The second paragraph text
 
+The second paragraph text
