@@ -18,39 +18,68 @@ In this semester project, sports tracks are analysed using GPS data from a Garmi
 
 1.  [Introduction](#introduction)
 
+    1.1 [Research questions](#subparagraph1)
+
 2.  [Methods](#methods)
 
-    2.1 [Preparation of data](#subparagraph1)
+    2.1 [Preparation of data](#subparagraph2)
 
-    2.2 [Evaluation of data](#subparagraph1)
+    2.2 [Evaluation of data](#subparagraph3)
 
 3.  [Results](#paragraph2)
 
+    3.1 [Research Question 1](#subparagraph4)
+
+    3.2 [Research Question 2](#subparagraph5)
+
+    3.3 [Research Question 3](#subparagraph6)
+
+4.  [Disussion](#paragraph3)
+
+    4.1 [Discussionpoint1](#subparagraph7)
+
+    4.2 [Further studies](#subparagraph8)
+
+5.  [Appendix](#paragraph4)
+
 ## 1 Introduction <a name="introduction"></a> {#introduction}
 
-Sport watches are a popular tool for monitor and regulate training activities among both professional and amateur athletes. Studies have already investigated for different sports watches (Apple, Coros, Garmin, Polar, and Suunto) how much the GPS data corresponds to reality \@@gilgen-ammann2020gilgen-ammannetal2020 .
+Sport watches are a popular tool for monitor and regulate training activities among both professional and amateur athletes. Depending on the product, in addition to GPS data, they also record altitude (e.g. based on air pressure) heart rate or further attributes. This collected data can thus serve to predict own behaviour pattern (fitness progress, stress, etc.) based on already existing tracks. In this work, we evaluate whether existing tracks of an athlete can be used to predict the time for a given route. This service is already available on different onlin-platforms such as googlemaps or swissmobile, but neither the fitness level, age, weight nor the gender are taken into account. here, apps can be used that analyze these different parameters individually for each athlete. However, to enable this interpretation step, there is a need of a) evaluating the accuracy of the measured data and b) determining the variables that lead to the desired output (in our case, time). In the study by @gilgen-ammann2020a, the accuracy of the recorded distances of eight commercially available sports watches from Apple, Coros, Garmin, Polar and Suunto was examined in different areas and at different speeds. The results showed that the recorded systematic errors (±limits of agreements) when all measurement areas combined ranged between 3.7 (±195.6) m and -101.0 (±231.3) m, and the mean absolute percentage errors ranged from 3.2% to 6.1%. These results lead to the conclusion that the acquired coordinates should be aligned with a suitable digital elevation model DEM (e.g. DHM25) before further use of the data.
 
-research questions  
+### 2.1 research questions <a name="subparagraph1"></a>
 
-1. What are the most relevant influencing variables on the athlete's time requirement and speed in the analysed data. A descriptive data analysis of some sample tracks (number to be defined) will be done. 
+1.  What are the most relevant influencing variables on the athlete's time requirement and speed in the analysed data?
 
-2. What behaviour patterns (e.g. pausing, moving) can be identified from the data? Are these behaviour patterns related to distance and altitude differences? Can patterns in behaviour be identified that are harmful to health? (Comparison of heart rate curve with recommended maximum heart rate). 
+2.  What behaviour patterns (e.g. pausing, moving) can be identified from the data? Are these behaviour patterns related to distance and altitude differences? Can patterns in behaviour be identified that are harmful to health? (Comparison of heart rate curve with recommended maximum heart rate).
 
-3. How reliably can the time required for sporting activities be predicted based on a user's individual fitness level? A model is created from past GPS tracks, which is validated using a self-experiment (determine new route using “SchweizMobil”, model time requirement and check in a self-experiment). 
+3.  How reliably can the time required for sporting activities be predicted based on a user's individual fitness level? A model is created from past GPS tracks, which is validated using a self-experiment (determine new route using "SchweizMobil", model time requirement and check in a self-experiment).
 
 ## 2 Methods <a name="methods"></a> {#methods}
 
-### 2.1 Preparation of data <a name="subparagraph1"></a>
+### 2.1 Preparation of data <a name="subparagraph2"></a>
 
-A dataset (data.frame) was generated using sports tracks data from a garmin-sportwatch by Dionis Anderegg. The data which can be obtained via the Garmin portal include spatio-temporal information (GPS-points, time,) and heart-rates, which comes within the .fit format. The tracks are already divided into the corresponding type of sport "jogging", "hiking", "biking".
+A dataset (data.frame) was generated using sports tracks data from a garmin-sportwatch from different anonymous athletes (athlete 01, athlete 02).The data which can be obtained via the Garmin portal comes within the .fit format. The raw .fit file include spatio-temporal information and heart-rates, such as timestamp, position (Latitude and Longitude), distance, enhanced-speed, enhanced-altitude, heart-rate (BPM), cadence (cadence is defined as the total number of steps per minute), fractional-cadence(). Furthermore the tracks are already divided into the corresponding type of sport "jogging", "hiking", "biking". All files with the format \*.fit are imported from the R project folder and were merged into a single Data.frame. All other Data.frames which were generated are deleted in order to gain only one entire dataframe to work with.
 
-### 2.2 Evaluation of data <a name="subparagraph1"></a>
+### 2.2 Evaluation of data <a name="subparagraph3"></a>
 
-The raw .fit file contains the following data: 
-Timestamp, position (Latitude and Longitude), distance, enhanced-speed (), enhanced-altitude, heart-rate (BPM), cadence (cadence is defined as the total number of steps per minute), fractional-cadence() 
+Since distance, speed ("enhanced_speed") and altitude ("enhanced_altitude") values are already available in the .fit files, they are compared with our own calculated results.
 
-To evaluate the data, a suitable digital elevation model DEM (e.g. DHM25) is used in order to compare the information of the .fit files.
+In order to distinguish between the different tracks of an athlete, an individual ID per track had to be created first. This was fulfilled by determining the time lag first, i.e. the time that elapsed between 2 recorded points. A new "activity_ID" was then given if timelag \> 1 hour (3600s).
+
+The distance recorded by the watch was then compared with calculate Euclidian step length. To calculate euclidean distance, an sf dataframe was created and converted to Swiss national coordinate system CH1903+ LV95. Moreover, a rolling window function with different k-values was generated in order to smoothen the time step-values. With this, speed was also calculated, compared with the data from the sportwatch (enhanced_speed multiplied by 3.6 to get the unit km/h) and plotted. The plots of 6 randomly selected tracks show that there are hardly any deviations between distance (and speed) from the .fit file and the calculated distance / speed values. Therefore, the distances from the sports watch are used for further calculations.
+
+To evaluate the altitude data arrived from air pressure, a suitable digital elevation model DEM (e.g. DHM25) was used in order to compare the information of the .fit files. For efficient calculations a dataframe containing only used positions was generated. [hier weitere Erklärung]. Then the altitude difference between pressure measurement and DHM layer was calculated and its differences were plotted.
 
 ## 3 Results <a name="paragraph2"></a>
 
-The second paragraph text
+### 3.1 Research Question 1 <a name="subparagraph1"></a>
+
+To answer research question 1, an exploratory data analysis (EDA) of the collected tracks was first conducted.
+
+![Fig. 1](plots_figures/altitude_difference.jpg "Difference altitude")
+
+[plot](http://127.0.0.1:5813 "plot")
+
+
+
+## x References
