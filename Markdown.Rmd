@@ -65,12 +65,12 @@ head(full)
 ```
 
 
-## 1.4 add variables 
+## 1.3 compare sport watch data with calculated values 
 
 Calculate speed and timelags. Activities must be able to be grouped. This is done via the "activity_ID", which segments the data frame into individual tracks.
 For the distance between two GPS fixes a SF object must be created and converted to the format CH1903+ LV95. From this the distance can be calculated.
 
-### 1.4.1 calculate timelag
+### 1.3.1 calculate timelag and individual activity_ID for each track
 
 ```{r}
 # Calculate timelag
@@ -82,7 +82,7 @@ full$activity_ID <- cumsum(full$activity_conter == TRUE)  # create acitiviy_ID b
 
 ```
 
-### 1.4.2 calculate speed / add rollmean function
+### 1.3.2 calculate speed / add rollmean function
 ```{r}
 # speed from tracker in km/h
 full$enhanced_speed_kmh <- full$enhanced_speed *3.6
@@ -110,11 +110,11 @@ ggplotly()
 
 ###1.4.3 Rolling window (smoothen) (alissa)
 
-```{r}
 
 rolling_window_function <- function(smoothing_window){
   
-  full_k <- mutate(full_long, movingwindow = rollmean(full_long$enhanced_speed, k=smoothing_window, fill=NA, align="left"))
+  full_k <- mutate(full, movingwindow = rollmean(enhanced_speed_kmh, k=smoothing_window, fill=NA, align="left"))
+  
   myplot <-ggplot(full_k)+
     geom_line(mapping = aes(x=timestamp, y=movingwindow, color=as.factor(activity_ID)))
   #print the plot
@@ -141,7 +141,7 @@ options(digits = 3)
 full_sf$x <- st_coordinates(full_sf$geometry)[,1]
 full_sf$y <- st_coordinates(full_sf$geometry)[,2]
 
-# calculate Euclidian steplength
+# calculate Euclidian step length
 full_sf <- full_sf %>%
   group_by(activity_ID) %>%
   mutate(
@@ -152,47 +152,49 @@ full_sf <- full_sf %>%
     hightdiff_down = ifelse(hightdiff < 0, hightdiff, 0)
   )
 
-# How altitude differences up affect speeds
-full_sf %>%
-  filter(activity_ID == 2) %>%
-  ggplot(aes(timestamp, enhanced_speed_15)) +
-  geom_line()+
-  geom_line(aes(y = rollmean(hightdiff_up, k = 15, fill = NA, allign = "left")*10), col = "green3") +
-  scale_y_continuous(
-    "speed\n", 
-    sec.axis = sec_axis(~ . * 0.1, name = "hight difference\n")
-  )+
-  theme_bw()
-ggplotly()
-
-# How altitude differences down affect speeds
-full_sf %>%
-  filter(activity_ID == 2) %>%
-  ggplot(aes(timestamp, enhanced_speed_15)) +
-  geom_line()+
-  geom_line(aes(y = rollmean(-hightdiff_down, k = 15, fill = NA, allign = "left")*10), col = "green4") +
-  scale_y_continuous(
-    "speed\n", 
-    sec.axis = sec_axis(~ . * 0.1, name = "hight difference\n")
-  ) +
-  theme_bw()
-ggplotly()
-
 #compare distance and steplength_sum
 
-full_sf %>%
-  filter(activity_ID < 7) %>%
+#generate random tracks to check
+random_tracks <-sample(full_sf$activity_ID, 6)
+
+compare_distance <- full_sf %>%
+  filter(activity_ID == random_tracks) %>%
   ggplot() +
-  geom_point(aes(timestamp, distance, col = "measurement")) +
-  geom_point(aes(timestamp, steplenght_sum, col = "euclidian distance")) +
+  geom_point(aes(timestamp, distance, col = "measurement", alpha=0.1)) +
+  geom_point(aes(timestamp, steplenght_sum, col = "euclidian distance", alpha=0.1)) +
   theme_bw() +
   theme(legend.position = "bottom") +
   facet_wrap(~activity_ID, scales = "free") +
   labs(x = "\n time", y = "distance in meters\n")
-```
-Die Grafik zeigt, dass die Distanz aus dem .fit-File sehr nahe an der berechneten Distanz liegt.
-Weiter mit den Daten von der .fit Datei???
 
+ggplotly(compare_distance)
+
+
+#calculate speed 
+
+full_sf <- full_sf %>%
+  group_by(activity_ID) %>%
+  mutate(speed_calculated = 3.6*(steplength/timelag)) 
+
+#compare calculated speed with speed from sport watch (speed_enhanced)
+
+
+compare_speed <- full_sf %>%
+  filter(activity_ID == random_tracks) %>%
+  ggplot() +
+  geom_point(aes(timestamp, distance, col = "speed_enhanced", alpha=0.1)) +
+  geom_point(aes(timestamp, steplenght_sum, col = "speed_calculated", alpha=0.1)) +
+  theme_bw() +
+  theme(legend.position = "bottom") +
+  facet_wrap(~activity_ID, scales = "free") +
+  labs(x = "\n time", y = "distance in meters\n")
+
+ggplotly(compare_speed)
+
+```
+From the plots it can be shown that the distance (and speed) from the .fit file are very close to the calculated distance / speed values.
+
+--> Continue with the data from the .fit file?
 
 
 ## 1.3 evaluate altitude with DEM => After creating full_sf!
@@ -261,7 +263,7 @@ full_sf$y_round <- as.numeric(2 * round(full_sf$y/2) + 1)
 # Join elevation 
 full_sf_join <- left_join(full_sf, data.matrix, by = c("x_round", "y_round"))
 
-# Calculate altitide difference between pressure measurement and DHM layer.
+# Calculate altitude difference between pressure measurement and DHM layer.
 full_sf_join$altitude_diff <- full_sf_join$layer - full_sf_join$enhanced_altitude
 
 # Test accuracy of elevation measurement
@@ -287,14 +289,53 @@ full_sf_join %>%
 
 # 2 Explorative data analysis 
 
-Datenanalyse eines einzelnen Tracks
+```{r}
 
-Folgend wird grafisch aufgezeigt, wie sich die Variablen Geschwindigkeit, Höhendifferenz und Herzfrequenz verhalten.
+# How altitude differences up affect speeds
+full_sf %>%
+  filter(activity_ID == 2) %>%
+  ggplot(aes(timestamp, enhanced_speed_15)) +
+  geom_line()+
+  geom_line(aes(y = rollmean(hightdiff_up, k = 15, fill = NA, allign = "left")*10), col = "green3") +
+  scale_y_continuous(
+    "speed\n", 
+    sec.axis = sec_axis(~ . * 0.1, name = "hight difference\n")
+  )+
+  theme_bw()
+ggplotly()
+
+# How altitude differences down affect speeds
+full_sf %>%
+  filter(activity_ID == 2) %>%
+  ggplot(aes(timestamp, enhanced_speed_15)) +
+  geom_line()+
+  geom_line(aes(y = rollmean(-hightdiff_down, k = 15, fill = NA, allign = "left")*10), col = "green4") +
+  scale_y_continuous(
+    "speed\n", 
+    sec.axis = sec_axis(~ . * 0.1, name = "hight difference\n")
+  ) +
+  theme_bw()
+ggplotly()
+
+```
+
+Data analysis of individual tracks
+
+
 ```{r}
 full_long <- gather(full, type, value, enhanced_altitude:heart_rate, enhanced_speed_kmh)
 
-full_long %>%
-  filter(activity_ID == 1) %>%
+library(shiny)
+library(plotly)
+
+#select plots which show graphically how the variables speed, altitude difference and heart rate behave.
+
+#create function for generation of plots
+
+plot_speed_altitude_heartrate_function <- function(track_ID){
+  
+  full_long %>%
+  filter(activity_ID == track_ID) %>%
   ggplot(aes(timestamp, value, col = type)) +
   geom_line()+
   geom_point() +
@@ -302,6 +343,34 @@ full_long %>%
   theme_bw() +
   theme(legend.position = "none") +
   labs(x = "\nUhrzeit in hh:mm", y = "Wert\n")
+  
+}
+
+#count number of tracks (unique activity ID)
+number_of_tracks <- length(unique(full_sf_join$activity_ID))
+number_of_tracks
+
+all_plots_speed_altitude_heartrate <- list() #create empty array
+
+#save plots in array "all_plots_speed_altitude_heartrate"
+for (track_ID in 1:number_of_tracks) {
+    all_plots_speed_altitude_heartrate[[track_ID]]<-plot_speed_altitude_heartrate_function(track_ID)
+  }
+#create userinterface ui with shiny
+ui <-shinyUI(fluidPage(selectInput("selectPlot", "Choose desired track", choices=1:number_of_tracks), plotlyOutput("plot")))
+
+server <- shinyServer(function(input,output){      
+  output$plot <- renderPlotly({
+    all_plots_speed_altitude_heartrate[[strtoi(input$selectPlot)]]
+  })
+})
+
+#get userinterface 
+shinyApp(ui,server)
+
+
+
+
 ```
 
 In der Tendenz lässt sich visuell eine Abnahme der Geschwindigkeit und eine Zunahme der Herzfrequenz mit einem Höhenanstieg erkennen. Ausserdem ist eine Pause von ca. 10 minuten duetlich am Geschwindigkeitdiagramm zu erkennen.
