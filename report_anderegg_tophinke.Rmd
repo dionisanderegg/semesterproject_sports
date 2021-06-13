@@ -72,14 +72,56 @@ To evaluate the altitude data arrived from air pressure, a suitable digital elev
 
 ## 3 Results <a name="paragraph2"></a>
 
+### 3.1 Comparison tracked data vs. calculated data <a name="subparagraph1"></a>
+
+**A) Distance**
+
+The comparison between the recorded distances and those from Eucliedean Distance shows that..
+
+![Fig. 1](plots_figures/compare_distance.jpg "compare distance of random tracks")
+
+**B) speed**
+
+The comparison between the recorded speed values and those from Eucliedean Distance and timestap show..
+
+![Fig. 1](plots_figures/compare_speed.jpg "compare speed of random tracks")
+
+{{< plotly json="/plotly/fig1.json" height="700">}}
+
+**C) Altitude**
+
+evaluate altitude with DEM
+
+![Fig. 2](plots_figures/altitude_difference.jpg "Difference altitude")
+
 ### 3.1 Research Question 1 <a name="subparagraph1"></a>
 
 To answer research question 1, an exploratory data analysis (EDA) of the collected tracks was first conducted.
 
-![Fig. 1](plots_figures/altitude_difference.jpg "Difference altitude")
-
 [plot](http://127.0.0.1:5813 "plot")
 
+--- output: html_document runtime: shiny --- 
 
+
+How altitude differences "up" affect speeds:
+
+```{r, echo=FALSE}
+
+shinyAppDir(
+  system.file("Markdown.Rmd", package="shiny"),
+  options = list(width = "100%", height = 700)
+)
+
+```
+
+### 3.2 Research Question 2 <a name="subparagraph1"></a>
+
+
+
+### 3.3 Research Question 3 <a name="subparagraph1"></a>
+
+## 4 Discussion <a name="discussion"></a> {#discussion}
+
+### 4.1 Pr <a name="subparagraph2"></a>
 
 ## x References
