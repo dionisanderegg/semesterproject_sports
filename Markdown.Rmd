@@ -167,6 +167,7 @@ compare_distance <- full_sf %>%
   facet_wrap(~activity_ID, scales = "free") +
   labs(x = "\n time", y = "distance in meters\n")
 
+compare_distance
 ggplotly(compare_distance)
 
 
@@ -188,6 +189,8 @@ compare_speed <- full_sf %>%
   theme(legend.position = "bottom") +
   facet_wrap(~activity_ID, scales = "free") +
   labs(x = "\n time", y = "distance in meters\n")
+
+compare_speed
 
 ggplotly(compare_speed)
 
@@ -287,7 +290,7 @@ full_sf_join %>%
 
 ```
 
-# 2 Explorative data analysis 
+# 2 RESEARCH QUESTION 1 -Explorative data analysis 
 
 ```{r}
 
@@ -302,6 +305,7 @@ full_sf %>%
     sec.axis = sec_axis(~ . * 0.1, name = "hight difference\n")
   )+
   theme_bw()
+
 ggplotly()
 
 # How altitude differences down affect speeds
@@ -320,6 +324,10 @@ ggplotly()
 ```
 
 Data analysis of individual tracks
+
+## 2.1 General overview => Lenths, times, hightdifferences...
+
+## 2.2 Analyse some tracks and show them on map (interactive?)
 
 
 ```{r}
@@ -373,11 +381,6 @@ shinyApp(ui,server)
 
 In der Tendenz lässt sich visuell eine Abnahme der Geschwindigkeit und eine Zunahme der Herzfrequenz mit einem Höhenanstieg erkennen. Ausserdem ist eine Pause von ca. 10 minuten duetlich am Geschwindigkeitdiagramm zu erkennen.
 
-## 2.1 General overview => Lenths, times, hightdifferences...
-
-## 2.2 Analyse some tracks and show them on map (interactive?)
-
-## 2.3 Possible outliers and evaluation area (scope)?
 
 # 3 Map visualizations
 
@@ -446,6 +449,7 @@ ggmap(myMap) +
   labs(x = "\nLängengrad [°E]", y = "Breitengrad [°N]\n")
 ```
 
+## 2.3 Possible outliers and evaluation area (scope)?
 
 # 4 Zusammenfassung pro Track
 ```{r}
@@ -463,13 +467,9 @@ zf <- full_sf %>%
 ```
 
 
-# 5 Behaviour pattern
+# 5 RESEARCH QUESTION 2 - Behaviour pattern
 
-
-
-
-
-
+## 5.1 pausing - moving pattern
 
 ```{r}
 #Remove “static points”
@@ -481,8 +481,14 @@ zf <- full_sf %>%
 
 
 #make a temporal window v of 10 minutes, i.e. a window size of 10 positions (n±3).
+tracks <- full_sf
+
+
 
 tracks <- full_sf %>%
+  rename(
+    "E" = "x",
+    "N" = "y" ) %>%
   mutate(
     nMinus5 = sqrt((lag(E,5)-E)^2+(lag(N,5)-N)^2),   # distance to pos -5 minutes
     nMinus4 = sqrt((lag(E,4)-E)^2+(lag(N,4)-N)^2),   # distance to pos -4 minutes
@@ -542,9 +548,9 @@ tracks%>%
 
 ```
 
-# 5.2 heart rate 
+## 5.2 heart rate 
 
-# model 
+# 6 RESEARCH QUESTION 3- model 
 
 ## Model basis => Segmeentation of all Tracks 
 ```{r}
@@ -679,7 +685,7 @@ ggplot(full_sf_min, aes(mean_pace, hightdiff_down)) +
 
 ```
 
-#validation
+## 6.2 validation of the model 
 
 
 ```{r}
