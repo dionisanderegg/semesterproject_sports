@@ -369,8 +369,6 @@ server <- shinyServer(function(input,output){
 shinyApp(ui,server)
 
 
-
-
 ```
 
 In der Tendenz lässt sich visuell eine Abnahme der Geschwindigkeit und eine Zunahme der Herzfrequenz mit einem Höhenanstieg erkennen. Ausserdem ist eine Pause von ca. 10 minuten duetlich am Geschwindigkeitdiagramm zu erkennen.
