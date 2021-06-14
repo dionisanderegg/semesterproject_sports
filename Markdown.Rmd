@@ -400,13 +400,35 @@ full_short <- full_long %>%
     ylim(0,3)+
     labs(title="duration of the tracks",
         x ="time in hour", y = "recorded track")
-
-
+  
+   
 min(full_short$duration_hour)
 max(full_short$duration_hour)
 
+max(full_short$duration_hour)*1.1 #consider 10% deviation --> 3.06h 
+
   
-#tracks duration beween 0.241 h and 2.78h for athlete 1
+#tracks duration beween 0.241 h and 2.78h for athlete 1  --> model prediction should not consider routes >3h
+
+#investigation for outliers
+
+
+is_outlier <- function(x) {
+  return(x < quantile(x, 0.25) - 1.5 * IQR(x) | x > quantile(x, 0.75) + 1.5 * IQR(x))
+}
+
+
+full_short %>%
+  mutate(outlier = ifelse(is_outlier(duration_hour), activity_ID, as.numeric(NA))) %>%
+  ggplot(aes(x = activity_ID, y = duration_hour)) +
+    geom_boxplot() +
+    geom_text(aes(label = outlier), na.rm = TRUE, hjust = -0.3)+
+  theme_bw()+
+    labs(title="duration of the tracks",
+        x ="time in hour", y = "recorded track")
+    
+
+#track 1,8 and 19 has to be controlled as possible outliers
 
 ```
 
