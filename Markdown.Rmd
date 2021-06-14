@@ -327,9 +327,6 @@ Data analysis of individual tracks
 
 ## 2.1 General overview => Lenths, times, hightdifferences...
 
-## 2.2 Analyse some tracks and show them on map (interactive?)
-
-
 ```{r}
 full_long <- gather(full, type, value, enhanced_altitude:heart_rate, enhanced_speed_kmh)
 
@@ -381,8 +378,41 @@ shinyApp(ui,server)
 
 In der Tendenz lässt sich visuell eine Abnahme der Geschwindigkeit und eine Zunahme der Herzfrequenz mit einem Höhenanstieg erkennen. Ausserdem ist eine Pause von ca. 10 minuten duetlich am Geschwindigkeitdiagramm zu erkennen.
 
+## 2.2 Possible outliers and evaluation area (scope)?
+
+```{r}
+#calculate duration of each track
+
+full_long <- full_long %>% 
+  group_by(activity_ID) %>% 
+  mutate(duration_hour = as.numeric(difftime(max(timestamp), min(timestamp), units = "hours"))) 
+
+
+full_short <- full_long %>% 
+  group_by(activity_ID, duration_hour) %>% 
+  summarize(value = mean(duration_hour)) %>%
+  ungroup 
+
+  ggplot(full_short)+
+    geom_col(aes(x=(reorder(activity_ID,-duration_hour)),y=duration_hour))+
+    coord_flip()+
+    theme_bw()+
+    ylim(0,3)+
+    labs(title="duration of the tracks",
+        x ="time in hour", y = "recorded track")
+
+
+min(full_short$duration_hour)
+max(full_short$duration_hour)
+
+  
+#tracks duration beween 0.241 h and 2.78h for athlete 1
+
+```
+
 
 # 3 Map visualizations
+Analyse some tracks and show them on map (interactive?)
 
 Tracks auf Karten darstellen (verschiedene Packages und Methoden). Welche Packages eignen sich?
 
@@ -449,7 +479,6 @@ ggmap(myMap) +
   labs(x = "\nLängengrad [°E]", y = "Breitengrad [°N]\n")
 ```
 
-## 2.3 Possible outliers and evaluation area (scope)?
 
 # 4 Zusammenfassung pro Track
 ```{r}
