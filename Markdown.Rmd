@@ -117,27 +117,82 @@ full$enhanced_speed_kmh <- full$enhanced_speed *3.6
 
 # smooth speed and heart rate by rollmenans
 full <- full %>%
-  group_by(activity_ID) %>%
+  group_by(activity_ID, athlete) %>%
   mutate(
-    enhanced_speed_03 = rollmean(enhanced_speed_kmh, k = 3, fill = NA, allign = "left"),
+    enhanced_speed_00 = enhanced_speed_kmh,
+    enhanced_speed_02 = rollmean(enhanced_speed_kmh, k = 2, fill = NA, allign = "left"),
     enhanced_speed_05 = rollmean(enhanced_speed_kmh, k = 5, fill = NA, allign = "left"),
     enhanced_speed_10 = rollmean(enhanced_speed_kmh, k = 10, fill = NA, allign = "left"),
-    enhanced_speed_15 = rollmean(enhanced_speed_kmh, k = 15, fill = NA, allign = "left"),
     enhanced_speed_30 = rollmean(enhanced_speed_kmh, k = 30, fill = NA, allign = "left"),
     enhanced_speed_60 = rollmean(enhanced_speed_kmh, k = 60, fill = NA, allign = "left")
   )
 
+full <- full %>%
+  group_by(activity_ID) %>%
+  mutate(Track_Distance = max(distance)) %>%
+  ungroup()
+
+full %>%
+  gather(window, speed, enhanced_speed_00 : enhanced_speed_60) %>%
+  ggplot(aes(window, speed)) +
+  geom_violin() +
+  facet_wrap(~as.Date(timestamp))+
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  labs(x = "\nsize of the moving window", y = "speed in km/h\n")
+
+full %>%
+  filter(Track_Distance > 10000) %>%
+  gather(window, speed, enhanced_speed_00 : enhanced_speed_60) %>%
+  ggplot(aes(window, speed)) +
+  geom_violin() +
+  facet_wrap(~as.Date(timestamp))+
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  labs(x = "\nsize of the moving window", y = "speed in km/h\n")
+
+full %>%
+  filter(Track_Distance < 10000) %>%
+  gather(window, speed, enhanced_speed_00 : enhanced_speed_60) %>%
+  ggplot(aes(window, speed)) +
+  geom_violin() +
+  facet_wrap(~as.Date(timestamp))+
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  labs(x = "\nsize of the moving window", y = "speed in km/h\n")
+
+
+full_smoothed_speed <- full %>%
+  dplyr::select(athlete, activity_ID, enhanced_speed_kmh : enhanced_speed_60) %>%
+  gather(window, speed, enhanced_speed_00 : enhanced_speed_60) %>%
+  group_by(window) %>%
+  summarise(mean = mean(speed, na.rm = TRUE),
+            sd = sd(speed, na.rm = TRUE),
+            var = var(speed, na.rm = TRUE))
+full_smoothed_speed
+
+ggplot(full_smoothed_speed, aes(window, mean)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean ))
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+
 # How "k-value" affects the variety in speed:
 full %>%
-  filter(activity_ID == 2) %>%
-  gather(smoother, speed, enhanced_speed_kmh, enhanced_speed_03 : enhanced_speed_60) %>%
+  filter(activity_ID == 1) %>%
+  gather(smoother, speed, 
+         enhanced_speed_kmh, enhanced_speed_kmh, enhanced_speed_02 : enhanced_speed_60) %>%
   ggplot(aes(timestamp, speed, col = smoother)) +
   geom_line() +
   theme_bw()
 ggplotly()
 
+```
+
+
 ###1.4.3 Rolling window (smoothen) (alissa --> müsste plot noch anpassen, sowieso doppelt)
 
+```{r}
 
 rolling_window_function <- function(smoothing_window){
   
