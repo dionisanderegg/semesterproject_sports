@@ -42,21 +42,49 @@ library(tiff)
 
 Import all files with extension .fit from the R project folder and merge them into a single Data.frame. Delete all other Data.frames so that only the entire DF is in the workspace. Various calculations have to be done only once (timelag, distance etc.).
 
-
-
 ```{r message=TRUE, warning=FALSE}
 
-myfiles <- list.files(".",pattern = "*.fit")
+# Files of every ahtlete must be labelled with _a1, _a2 or a_3 before the .fit extension.
+#  Get all the files per athlete
+myfiles_a1 <- list.files(".",pattern = "*a1.fit")
+myfiles_a2 <- list.files(".",pattern = "*a2.fit")
+myfiles_a3 <- list.files(".",pattern = "*a3.fit")
 
-for (i in 1:length(myfiles)) {
-  varName <- paste0("temp", i, ".fit")
-  assign(varName, as.data.frame(records(readFitFile(myfiles[i]))))
+# Import files from athlete 1 temporary
+for (i in 1:length(myfiles_a1)) {
+  varName <- paste0("temp_a1", i, ".fit")
+  assign(varName, as.data.frame(records(readFitFile(myfiles_a1[i]))))
 }
 
-#generate dataframe "full" with all data
+# Bind row for athlete 1 temporary, label as athelte 1
+a1 <- mget(ls(pattern="temp_a1")) %>%
+              bind_rows() %>%
+  mutate(athlete = 1)
 
-full <- mget(ls(pattern="temp")) %>%
-              bind_rows()
+# Import files from athlete 2 temporary
+for (i in 1:length(myfiles_a2)) {
+  varName <- paste0("temp_a2", i, ".fit")
+  assign(varName, as.data.frame(records(readFitFile(myfiles_a2[i]))))
+}
+
+# Bind rows from athlete 2 temporary, label as athelte 2
+a2 <- mget(ls(pattern="temp_a2")) %>%
+              bind_rows() %>%
+  mutate(athlete = 2)
+
+# Import files from athlete 3 temporary
+for (i in 1:length(myfiles_a3)) {
+  varName <- paste0("temp_a3", i, ".fit")
+  assign(varName, as.data.frame(records(readFitFile(myfiles_a3[i]))))
+}
+
+# Bind rows from athlete 2 temporary, label as athelte 3
+a3 <- mget(ls(pattern="temp_a3")) %>%
+              bind_rows() %>%
+  mutate(athlete = 3)
+
+# Bind files from all athletes using rowbind.
+full <- bind_rows(a1, a2, a3)
 
 keep(full, sure = TRUE)
 
