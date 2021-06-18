@@ -165,7 +165,7 @@ full %>%
 full_smoothed_speed <- full %>%
   dplyr::select(athlete, activity_ID, enhanced_speed_kmh : enhanced_speed_60) %>%
   gather(window, speed, enhanced_speed_00 : enhanced_speed_60) %>%
-  group_by(window) %>%
+  group_by(window, activity_ID) %>%
   summarise(mean = mean(speed, na.rm = TRUE),
             sd = sd(speed, na.rm = TRUE),
             var = var(speed, na.rm = TRUE))
@@ -173,9 +173,10 @@ full_smoothed_speed
 
 ggplot(full_smoothed_speed, aes(window, mean)) +
   geom_point() +
-  geom_errorbar(aes(ymin = mean ))
-  theme(axis.text.x = element_text(angle = 90, hjust = 1))
-
+  geom_errorbar(aes(ymin = mean -var, ymax = mean+ var)) +
+  facet_wrap(~activity_ID) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))+
+  labs(x = "\n size of the moving window", y = "mean speed and variance per track\n")
 
 # How "k-value" affects the variety in speed:
 full %>%
