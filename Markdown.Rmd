@@ -643,6 +643,24 @@ Can patterns in behavior be identified that are harmful to health? (Comparison o
 
 ```{r}
 
+max_heart_rate_athlete <-max(tracks$heart_rate)
+max_heart_rate_athlete*0.8
+
+
+tracks_heart <- tracks %>% 
+  group_by(activity_ID) %>% 
+    mutate(high = heart_rate > (0.8*(max_heart_rate_athlete)), na.rm = TRUE)
+
+
+
+#make plot with heart_rate normal (training) and high rate
+tracks_heart%>%
+  ggplot(aes(E, N, col=(high)))  +
+  geom_path() +
+  geom_point() +
+  coord_fixed() +
+  theme(legend.position = "right")+
+  facet_wrap(.~activity_ID)
 
 ```
 
@@ -786,6 +804,8 @@ ggplot(full_sf_min, aes(mean_pace, hightdiff_down)) +
 
 
 ```{r}
+
+
 
 ```
 
