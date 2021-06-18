@@ -108,6 +108,10 @@ full %>%
   theme_bw()
 ggplotly()
 
+#choose k-value for your data --> statistische Auswertung oder aus Grafik 
+
+
+
 ###1.4.3 Rolling window (smoothen) (alissa --> müsste plot noch anpassen, sowieso doppelt)
 
 
@@ -183,12 +187,12 @@ full_sf <- full_sf %>%
 compare_speed <- full_sf %>%
   filter(activity_ID == random_tracks) %>%
   ggplot() +
-  geom_point(aes(timestamp, distance, col = "speed_enhanced", alpha=0.1)) +
-  geom_point(aes(timestamp, steplenght_sum, col = "speed_calculated", alpha=0.1)) +
+  geom_point(aes(timestamp, enhanced_speed_kmh, col = "blue", alpha=0.1)) +
+  geom_point(aes(timestamp, speed_calculated, col = "red", alpha=0.1)) +
   theme_bw() +
   theme(legend.position = "bottom") +
   facet_wrap(~activity_ID, scales = "free") +
-  labs(x = "\n time", y = "distance in meters\n")
+  labs(x = "\n time", y = "speed\n")
 
 compare_speed
 
@@ -643,13 +647,14 @@ Can patterns in behavior be identified that are harmful to health? (Comparison o
 
 ```{r}
 
+#max heart rate --literature athlete 1 
 max_heart_rate_athlete <-max(tracks$heart_rate)
-max_heart_rate_athlete*0.8
+high_rate <- (max_heart_rate_athlete*0.8)
 
 
 tracks_heart <- tracks %>% 
   group_by(activity_ID) %>% 
-    mutate(high = heart_rate > (0.8*(max_heart_rate_athlete)), na.rm = TRUE)
+    mutate(high = heart_rate > (high_rate), na.rm = TRUE)
 
 
 
@@ -660,7 +665,8 @@ tracks_heart%>%
   geom_point() +
   coord_fixed() +
   theme(legend.position = "right")+
-  facet_wrap(.~activity_ID)
+  facet_wrap(.~activity_ID)+
+  scale_color_manual(values=c("#E69F00", "red"))
 
 ```
 
