@@ -412,7 +412,7 @@ max(full_short$duration_hour)*1.1 #consider 10% deviation --> 3.06h
 
 #investigation for outliers
 
-
+#function for outlier hat will return a boolean TRUE/FALSE if the value passed to it is an outlier: 
 is_outlier <- function(x) {
   return(x < quantile(x, 0.25) - 1.5 * IQR(x) | x > quantile(x, 0.75) + 1.5 * IQR(x))
 }
@@ -422,13 +422,13 @@ full_short %>%
   mutate(outlier = ifelse(is_outlier(duration_hour), activity_ID, as.numeric(NA))) %>%
   ggplot(aes(x = activity_ID, y = duration_hour)) +
     geom_boxplot() +
-    geom_text(aes(label = outlier), na.rm = TRUE, hjust = -0.3)+
+    geom_text(aes(label = outlier), na.rm = TRUE, hjust = -0.1)+
   theme_bw()+
     labs(title="duration of the tracks",
-        x ="time in hour", y = "recorded track")
+        x ="time in hour", y = "different tracks athlete 01")
     
 
-#track 1,8 and 19 has to be controlled as possible outliers
+#track 1,8 and 19 has to be controlled for possible outliers
 
 ```
 
