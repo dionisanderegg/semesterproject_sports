@@ -108,7 +108,7 @@ full %>%
   theme_bw()
 ggplotly()
 
-###1.4.3 Rolling window (smoothen) (alissa)
+###1.4.3 Rolling window (smoothen) (alissa --> müsste plot noch anpassen, sowieso doppelt)
 
 
 rolling_window_function <- function(smoothing_window){
@@ -167,6 +167,7 @@ compare_distance <- full_sf %>%
   facet_wrap(~activity_ID, scales = "free") +
   labs(x = "\n time", y = "distance in meters\n")
 
+compare_distance
 ggplotly(compare_distance)
 
 
@@ -188,6 +189,8 @@ compare_speed <- full_sf %>%
   theme(legend.position = "bottom") +
   facet_wrap(~activity_ID, scales = "free") +
   labs(x = "\n time", y = "distance in meters\n")
+
+compare_speed
 
 ggplotly(compare_speed)
 
@@ -287,7 +290,7 @@ full_sf_join %>%
 
 ```
 
-# 2 Explorative data analysis 
+# 2 RESEARCH QUESTION 1 -Explorative data analysis 
 
 ```{r}
 
@@ -302,6 +305,7 @@ full_sf %>%
     sec.axis = sec_axis(~ . * 0.1, name = "hight difference\n")
   )+
   theme_bw()
+
 ggplotly()
 
 # How altitude differences down affect speeds
@@ -321,6 +325,7 @@ ggplotly()
 
 Data analysis of individual tracks
 
+## 2.1 General overview => Lenths, times, hightdifferences...
 
 ```{r}
 full_long <- gather(full, type, value, enhanced_altitude:heart_rate, enhanced_speed_kmh)
@@ -373,13 +378,99 @@ shinyApp(ui,server)
 
 In der Tendenz lässt sich visuell eine Abnahme der Geschwindigkeit und eine Zunahme der Herzfrequenz mit einem Höhenanstieg erkennen. Ausserdem ist eine Pause von ca. 10 minuten duetlich am Geschwindigkeitdiagramm zu erkennen.
 
-## 2.1 General overview => Lenths, times, hightdifferences...
+## 2.2 Possible outliers and evaluation area (scope)?
 
-## 2.2 Analyse some tracks and show them on map (interactive?)
+```{r}
+#calculate duration of each track
 
-## 2.3 Possible outliers and evaluation area (scope)?
+full_short <- full %>% 
+  group_by(activity_ID) %>% 
+  mutate(duration_hour = as.numeric(difftime(max(timestamp), min(timestamp), units = "hours"))) 
+
+
+full_short <- full_short %>% 
+  group_by(activity_ID, duration_hour) %>% 
+  summarize(value = mean(duration_hour)) %>%
+  ungroup 
+
+  ggplot(full_short)+
+    geom_col(aes(x=(reorder(activity_ID,-duration_hour)),y=duration_hour))+
+    coord_flip()+
+    theme_bw()+
+    ylim(0,3)+
+    labs(title="duration of the tracks",
+        x ="time in hour", y = "recorded track")
+  
+   
+min(full_short$duration_hour)
+max(full_short$duration_hour)
+
+max(full_short$duration_hour)*1.1 #consider 10% deviation --> 3.06h 
+
+  
+#tracks duration beween 0.241 h and 2.78h for athlete 1  --> model prediction should not consider routes >3h
+
+########calculate duration of each track without breaks
+
+#take data.frame from chapter 5.1 (das mömer auwä no ommodle)
+
+ 
+short_no_breaks <- tracks %>% 
+  group_by(activity_ID) %>% 
+  mutate(duration_hour_filtered = (for (i in static) {
+ if(i = "FALSE"){
+sum(timelag, na.rm = TRUE)
+ }}))
+
+short_no_breaks <- short_no_breaks %>% 
+  group_by(activity_ID, duration_hour_filtered) %>% 
+  summarize(value = mean(duration_hour_filtered)) %>%
+  ungroup() 
+
+  ggplot(short_no_breaks)+
+    geom_col(aes(x=(reorder(activity_ID,-duration_hour_filtered)),y=duration_hour_filtered))+
+    coord_flip()+
+    theme_bw()+
+    ylim(0,3)+
+    labs(title= "duration of the tracks without breaks", x ="time in hour", y = "recorded track")
+
+#try it in a different way:
+storage <- numeric(length(unique(tracks$activity_ID)))
+
+
+track_01 <-tracks %>% 
+  select(activity_ID == 1 )
+
+for (i in tracks$static) {
+ storage[i]<-if(i == "FALSE"){
+sum(tracks$timelag, na.rm = TRUE)}
+}
+
+#investigation for outliers
+
+#function for outlier hat will return a boolean TRUE/FALSE if the value passed to it is an outlier: 
+is_outlier <- function(x) {
+  return(x < quantile(x, 0.25) - 1.5 * IQR(x) | x > quantile(x, 0.75) + 1.5 * IQR(x))
+}
+
+
+full_short %>%
+  mutate(outlier = ifelse(is_outlier(duration_hour), activity_ID, as.numeric(NA))) %>%
+  ggplot(aes(x = activity_ID, y = duration_hour)) +
+    geom_boxplot() +
+    geom_text(aes(label = outlier), na.rm = TRUE, hjust = -0.1)+
+  theme_bw()+
+    labs(title="duration of the tracks",
+        x ="time in hour", y = "different tracks athlete 01")
+    
+
+#track 1,8 and 19 has to be controlled for possible outliers
+
+```
+
 
 # 3 Map visualizations
+Analyse some tracks and show them on map (interactive?)
 
 Tracks auf Karten darstellen (verschiedene Packages und Methoden). Welche Packages eignen sich?
 
@@ -463,13 +554,9 @@ zf <- full_sf %>%
 ```
 
 
-# 5 Behaviour pattern
+# 5 RESEARCH QUESTION 2 - Behaviour pattern
 
-
-
-
-
-
+## 5.1 pausing - moving pattern
 
 ```{r}
 #Remove “static points”
@@ -480,9 +567,15 @@ zf <- full_sf %>%
 # a) first try: mean value for a temporal window as a threshold
 
 
-#make a temporal window v of 10 minutes, i.e. a window size of 10 positions (n±3).
+#make a temporal window v of 10 minutes, i.e. a window size of 10 positions (n±5).
+tracks <- full_sf
+
+
 
 tracks <- full_sf %>%
+  rename(
+    "E" = "x",
+    "N" = "y" ) %>%
   mutate(
     nMinus5 = sqrt((lag(E,5)-E)^2+(lag(N,5)-N)^2),   # distance to pos -5 minutes
     nMinus4 = sqrt((lag(E,4)-E)^2+(lag(N,4)-N)^2),   # distance to pos -4 minutes
@@ -542,9 +635,19 @@ tracks%>%
 
 ```
 
-# 5.2 heart rate 
+## 5.2 heart rate 
 
-# model 
+Can patterns in behavior be identified that are harmful to health? (Comparison of heart rate curve with recommended maximum heart rate).
+
+--> everyone’s heart rate is different, Most athletes train at between 50 and 70 percent of their maximum heart rate.
+
+```{r}
+
+
+```
+
+
+# 6 RESEARCH QUESTION 3- model 
 
 ## Model basis => Segmeentation of all Tracks 
 ```{r}
@@ -679,7 +782,7 @@ ggplot(full_sf_min, aes(mean_pace, hightdiff_down)) +
 
 ```
 
-#validation
+## 6.2 validation of the model 
 
 
 ```{r}

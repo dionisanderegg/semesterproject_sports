@@ -100,8 +100,7 @@ To answer research question 1, an exploratory data analysis (EDA) of the collect
 
 [plot](http://127.0.0.1:5813 "plot")
 
---- output: html_document runtime: shiny --- 
-
+--- output: html_document runtime: shiny ---
 
 How altitude differences "up" affect speeds:
 
@@ -116,12 +115,28 @@ shinyAppDir(
 
 ### 3.2 Research Question 2 <a name="subparagraph1"></a>
 
-
+In this chapter the goal was to indicate specific behavioural patterns (e.g. speed, breaks, or similar) in the sports data and when they occur.
 
 ### 3.3 Research Question 3 <a name="subparagraph1"></a>
 
+#### 3.3.1 Validation
+
 ## 4 Discussion <a name="discussion"></a> {#discussion}
 
-### 4.1 Pr <a name="subparagraph2"></a>
+### 4.1 Problems / Further studies<a name="subparagraph2"></a>
+
+Factors which influence time requirement (and heart rate), include not only the route and its path circumstances, but also
+
+-   Air-temperature / weather conditions
+
+-   Age
+
+-   Having disease such as cardiovascular disease, high cholesterol, diabetes etc.
+
+-   Medications
+
+-   Smoker/non-smoker
+
+-   Emotions
 
 ## x References
