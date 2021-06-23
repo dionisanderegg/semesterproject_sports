@@ -42,21 +42,49 @@ library(tiff)
 
 Import all files with extension .fit from the R project folder and merge them into a single Data.frame. Delete all other Data.frames so that only the entire DF is in the workspace. Various calculations have to be done only once (timelag, distance etc.).
 
-
-
 ```{r message=TRUE, warning=FALSE}
 
-myfiles <- list.files(".",pattern = "*.fit")
+# Files of every ahtlete must be labelled with _a1, _a2 or a_3 before the .fit extension.
+#  Get all the files per athlete
+myfiles_a1 <- list.files(".",pattern = "*a1.fit")
+myfiles_a2 <- list.files(".",pattern = "*a2.fit")
+myfiles_a3 <- list.files(".",pattern = "*a3.fit")
 
-for (i in 1:length(myfiles)) {
-  varName <- paste0("temp", i, ".fit")
-  assign(varName, as.data.frame(records(readFitFile(myfiles[i]))))
+# Import files from athlete 1 temporary
+for (i in 1:length(myfiles_a1)) {
+  varName <- paste0("temp_a1", i, ".fit")
+  assign(varName, as.data.frame(records(readFitFile(myfiles_a1[i]))))
 }
 
-#generate dataframe "full" with all data
+# Bind row for athlete 1 temporary, label as athelte 1
+a1 <- mget(ls(pattern="temp_a1")) %>%
+              bind_rows() %>%
+  mutate(athlete = 1)
 
-full <- mget(ls(pattern="temp")) %>%
-              bind_rows()
+# Import files from athlete 2 temporary
+for (i in 1:length(myfiles_a2)) {
+  varName <- paste0("temp_a2", i, ".fit")
+  assign(varName, as.data.frame(records(readFitFile(myfiles_a2[i]))))
+}
+
+# Bind rows from athlete 2 temporary, label as athelte 2
+a2 <- mget(ls(pattern="temp_a2")) %>%
+              bind_rows() %>%
+  mutate(athlete = 2)
+
+# Import files from athlete 3 temporary
+for (i in 1:length(myfiles_a3)) {
+  varName <- paste0("temp_a3", i, ".fit")
+  assign(varName, as.data.frame(records(readFitFile(myfiles_a3[i]))))
+}
+
+# Bind rows from athlete 2 temporary, label as athelte 3
+a3 <- mget(ls(pattern="temp_a3")) %>%
+              bind_rows() %>%
+  mutate(athlete = 3)
+
+# Bind files from all athletes using rowbind.
+full <- bind_rows(a1, a2, a3)
 
 keep(full, sure = TRUE)
 
@@ -136,31 +164,82 @@ full$enhanced_speed_kmh <- full$enhanced_speed *3.6
 
 # smooth speed and heart rate by rollmenans
 full <- full %>%
-  group_by(activity_ID) %>%
+  group_by(activity_ID, athlete) %>%
   mutate(
-    enhanced_speed_03 = rollmean(enhanced_speed_kmh, k = 3, fill = NA, allign = "left"),
+    enhanced_speed_00 = enhanced_speed_kmh,
+    enhanced_speed_02 = rollmean(enhanced_speed_kmh, k = 2, fill = NA, allign = "left"),
     enhanced_speed_05 = rollmean(enhanced_speed_kmh, k = 5, fill = NA, allign = "left"),
     enhanced_speed_10 = rollmean(enhanced_speed_kmh, k = 10, fill = NA, allign = "left"),
-    enhanced_speed_15 = rollmean(enhanced_speed_kmh, k = 15, fill = NA, allign = "left"),
     enhanced_speed_30 = rollmean(enhanced_speed_kmh, k = 30, fill = NA, allign = "left"),
     enhanced_speed_60 = rollmean(enhanced_speed_kmh, k = 60, fill = NA, allign = "left")
   )
 
+full <- full %>%
+  group_by(activity_ID) %>%
+  mutate(Track_Distance = max(distance)) %>%
+  ungroup()
+
+full %>%
+  gather(window, speed, enhanced_speed_00 : enhanced_speed_60) %>%
+  ggplot(aes(window, speed)) +
+  geom_violin() +
+  facet_wrap(~as.Date(timestamp))+
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  labs(x = "\nsize of the moving window", y = "speed in km/h\n")
+
+full %>%
+  filter(Track_Distance > 10000) %>%
+  gather(window, speed, enhanced_speed_00 : enhanced_speed_60) %>%
+  ggplot(aes(window, speed)) +
+  geom_violin() +
+  facet_wrap(~as.Date(timestamp))+
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  labs(x = "\nsize of the moving window", y = "speed in km/h\n")
+
+full %>%
+  filter(Track_Distance < 10000) %>%
+  gather(window, speed, enhanced_speed_00 : enhanced_speed_60) %>%
+  ggplot(aes(window, speed)) +
+  geom_violin() +
+  facet_wrap(~as.Date(timestamp))+
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  labs(x = "\nsize of the moving window", y = "speed in km/h\n")
+
+
+full_smoothed_speed <- full %>%
+  dplyr::select(athlete, activity_ID, enhanced_speed_kmh : enhanced_speed_60) %>%
+  gather(window, speed, enhanced_speed_00 : enhanced_speed_60) %>%
+  group_by(window, activity_ID) %>%
+  summarise(mean = mean(speed, na.rm = TRUE),
+            sd = sd(speed, na.rm = TRUE),
+            var = var(speed, na.rm = TRUE))
+full_smoothed_speed
+
+ggplot(full_smoothed_speed, aes(window, mean)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean -var, ymax = mean+ var)) +
+  facet_wrap(~activity_ID) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))+
+  labs(x = "\n size of the moving window", y = "mean speed and variance per track\n")
+
 # How "k-value" affects the variety in speed:
 full %>%
-  filter(activity_ID == 2) %>%
-  gather(smoother, speed, enhanced_speed_kmh, enhanced_speed_03 : enhanced_speed_60) %>%
+  filter(activity_ID == 1) %>%
+  gather(smoother, speed, 
+         enhanced_speed_kmh, enhanced_speed_kmh, enhanced_speed_02 : enhanced_speed_60) %>%
   ggplot(aes(timestamp, speed, col = smoother)) +
   geom_line() +
   theme_bw()
 ggplotly()
 
-#choose k-value for your data --> statistische Auswertung oder aus Grafik 
-
 
 
 ###1.4.3 Rolling window (smoothen) (alissa --> müsste plot noch anpassen, sowieso doppelt)
 
+```{r}
 
 rolling_window_function <- function(smoothing_window){
   
@@ -702,6 +781,7 @@ Can patterns in behavior be identified that are harmful to health? (Comparison o
 
 ```{r}
 
+
 #max heart rate --literature athlete 1 
 #date of athlete 1
 birth_athelete1 <- as.Date('1983-10-20')
@@ -714,9 +794,12 @@ max_heart_rate_literature <- 220-age_a1
 high_rate <- (max_heart_rate_athlete*0.8)
 
 
+
+
 tracks_heart <- tracks %>% 
   group_by(activity_ID) %>% 
-    mutate(high = heart_rate > (high_rate), na.rm = TRUE)
+    mutate(high = heart_rate > (0.8*(high_rate)), na.rm = TRUE)
+
 
 
 
@@ -729,6 +812,7 @@ tracks_heart%>%
   theme(legend.position = "right")+
   facet_wrap(.~activity_ID)+
   scale_color_manual(values=c("#E69F00", "red"))
+
 
 ```
 
