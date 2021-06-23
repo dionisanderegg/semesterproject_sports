@@ -45,6 +45,7 @@ Import all files with extension .fit from the R project folder and merge them in
 ```{r message=TRUE, warning=FALSE}
 
 # Files of every ahtlete must be labelled with _a1, _a2 or a_3 before the .fit extension.
+
 #  Get all the files per athlete
 myfiles_a1 <- list.files(".",pattern = "*a1.fit")
 myfiles_a2 <- list.files(".",pattern = "*a2.fit")
@@ -91,7 +92,6 @@ keep(full, sure = TRUE)
 #check full
 head(full)
 ```
-
 
 ## 1.3 compare sport watch data with calculated values 
 
@@ -495,75 +495,49 @@ shinyApp(ui,server)
 
 ```
 
-In der Tendenz lässt sich visuell eine Abnahme der Geschwindigkeit und eine Zunahme der Herzfrequenz mit einem Höhenanstieg erkennen. Ausserdem ist eine Pause von ca. 10 minuten duetlich am Geschwindigkeitdiagramm zu erkennen.
+The trend visually shows a decrease in speed and an increase in heart rate with an increase in altitude. In addition, a pause of approx. 10 minutes can be seen duetly on the speed diagram.
 
 ## 2.2 Possible outliers and evaluation area (scope)?
 
 ```{r}
-#calculate duration of each track
+#calculate duration of each track and
+#calculate duration of each track without breaks and
+#calculate duration of breaks per track
 
-full_short <- full %>% 
+full_short <- tracks %>% 
   group_by(activity_ID) %>% 
-  mutate(duration_hour = as.numeric(difftime(max(timestamp), min(timestamp), units = "hours"))) 
+  mutate(duration_whole_track = as.numeric(difftime(max(timestamp), min(timestamp), units = "hours"))) %>% #in hours
+  group_by(activity_ID, static) %>% 
+  filter(static == FALSE) %>% 
+    mutate(duration_moving = as.numeric(difftime(max(timestamp), min(timestamp), units = "hours"))) %>% 
+  ungroup() %>% 
+  mutate(duration_breaks = duration_whole_track- duration_moving) 
 
 
 full_short <- full_short %>% 
-  group_by(activity_ID, duration_hour) %>% 
-  summarize(value = mean(duration_hour)) %>%
-  ungroup 
+  group_by(activity_ID) %>% 
+  summarize(duration_track = mean(duration_whole_track), 
+            duration_moving = mean(duration_moving), 
+            duration_breaks = mean(duration_breaks)) %>%
+  ungroup() 
 
   ggplot(full_short)+
-    geom_col(aes(x=(reorder(activity_ID,-duration_hour)),y=duration_hour))+
+    geom_col(aes(x=(reorder(activity_ID,-duration_moving)),y=duration_moving))+
     coord_flip()+
     theme_bw()+
     ylim(0,3)+
-    labs(title="duration of the tracks",
+    labs(title="moving duration of the tracks",
         x ="time in hour", y = "recorded track")
   
    
-min(full_short$duration_hour)
-max(full_short$duration_hour)
+min(full_short$duration_moving)
+max(full_short$duration_moving)
 
-max(full_short$duration_hour)*1.1 #consider 10% deviation --> 3.06h 
+max(full_short$duration_moving)*1.1 #consider 10% deviation --> 3.05h 
 
   
-#tracks duration beween 0.241 h and 2.78h for athlete 1  --> model prediction should not consider routes >3h
+#tracks duration beween 0.235 h and 2.77h for athlete 1  --> model prediction should not consider routes >3h
 
-########calculate duration of each track without breaks
-
-#take data.frame from chapter 5.1 (das mömer auwä no ommodle)
-
- 
-short_no_breaks <- tracks %>% 
-  group_by(activity_ID) %>% 
-  mutate(duration_hour_filtered = (for (i in static) {
- if(i = "FALSE"){
-sum(timelag, na.rm = TRUE)
- }}))
-
-short_no_breaks <- short_no_breaks %>% 
-  group_by(activity_ID, duration_hour_filtered) %>% 
-  summarize(value = mean(duration_hour_filtered)) %>%
-  ungroup() 
-
-  ggplot(short_no_breaks)+
-    geom_col(aes(x=(reorder(activity_ID,-duration_hour_filtered)),y=duration_hour_filtered))+
-    coord_flip()+
-    theme_bw()+
-    ylim(0,3)+
-    labs(title= "duration of the tracks without breaks", x ="time in hour", y = "recorded track")
-
-#try it in a different way:
-storage <- numeric(length(unique(tracks$activity_ID)))
-
-
-track_01 <-tracks %>% 
-  select(activity_ID == 1 )
-
-for (i in tracks$static) {
- storage[i]<-if(i == "FALSE"){
-sum(tracks$timelag, na.rm = TRUE)}
-}
 
 #investigation for outliers
 
@@ -574,16 +548,16 @@ is_outlier <- function(x) {
 
 
 full_short %>%
-  mutate(outlier = ifelse(is_outlier(duration_hour), activity_ID, as.numeric(NA))) %>%
-  ggplot(aes(x = activity_ID, y = duration_hour)) +
+  mutate(outlier = ifelse(is_outlier(duration_moving), activity_ID, as.numeric(NA))) %>%
+  ggplot(aes(x = activity_ID, y = duration_moving)) +
     geom_boxplot() +
     geom_text(aes(label = outlier), na.rm = TRUE, hjust = -0.1)+
   theme_bw()+
-    labs(title="duration of the tracks",
+    labs(title="moving duration of the tracks",
         x ="time in hour", y = "different tracks athlete 01")
     
 
-#track 1,8 and 19 has to be controlled for possible outliers
+#track 1,8 and 14 has to be controlled for possible outliers
 
 ```
 
