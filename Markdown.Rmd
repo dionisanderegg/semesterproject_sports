@@ -551,11 +551,12 @@ full_short %>%
   mutate(outlier = ifelse(is_outlier(duration_moving), activity_ID, as.numeric(NA))) %>%
   ggplot(aes(x = activity_ID, y = duration_moving)) +
     geom_boxplot() +
-    geom_text(aes(label = outlier), na.rm = TRUE, hjust = -0.1)+
+    geom_text(aes(label = outlier), na.rm = TRUE, hjust = -0.2)+
   theme_bw()+
     labs(title="moving duration of the tracks",
         x ="time in hour", y = "different tracks athlete 01")
-    
+
+  
 
 #track 1,8 and 14 has to be controlled for possible outliers
 
@@ -623,7 +624,7 @@ m2 <- full %>%
   addPolylines( )
 m2
 ```
-
+### 2.4.3 visualization with ggmap
 
 ggmap() => Da die Karten importiert werden müssen nur für 3 Tracks gezeigt:
 ```{r, message = FALSE}
@@ -644,6 +645,7 @@ ggmap(myMap) +
   facet_wrap(~activity_ID) +
   labs(x = "\nLängengrad [°E]", y = "Breitengrad [°N]\n")
 ```
+
 
 
 
@@ -675,7 +677,9 @@ ggplotly(athlete01)
 
 #plot tracks with pausing/moving on maps
 
-
+leaflet(athlete01) %>% 
+    addTiles() %>% 
+    addPolylines(lat = athlete01$E, lng = athlete01$N)
 
 
 ```
@@ -686,28 +690,26 @@ Can patterns in behavior be identified that are harmful to health? (Comparison o
 
 --> everyone’s heart rate is different, Most athletes train at between 50 and 70 percent of their maximum heart rate.
 
+According to Such and Meyer (2010) HFmax is calculated by 220 - age (for running) for men. 
+Also women-specific rules of thumb such as HFmax = 206 - (age x 0.88) exist, but it will not be considered, as all athletes in this report are men
 ```{r}
 
 
 #max heart rate --literature athlete 1 
 #date of athlete 1
-birth_athelete1 <- as.Date('1983-10-20')
+birth_athelete1 <- as.Date('1992-10-20')
 now <- Sys.time()
 
 age_a1 <- time_length(difftime(now, birth_athelete1), "years")
 age_a1
 
 max_heart_rate_literature <- 220-age_a1
-high_rate <- (max_heart_rate_literature*0.8)
-
-
+high_rate <- (max_heart_rate_literature*0.86)
 
 
 tracks_heart <- tracks %>% 
   group_by(activity_ID) %>% 
-    mutate(high = heart_rate > (0.8*(high_rate)), na.rm = TRUE)
-
-
+    mutate(high = heart_rate > (high_rate), na.rm = TRUE)
 
 
 #make plot with heart_rate normal (training) and high rate

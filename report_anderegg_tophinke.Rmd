@@ -44,7 +44,7 @@ In this semester project, sports tracks are analysed using GPS data from a Garmi
 
 ## 1 Introduction <a name="introduction"></a> {#introduction}
 
-Sport watches are a popular tool for monitor and regulate training activities among both professional and amateur athletes. Depending on the product, in addition to GPS data, they also record altitude (e.g. based on air pressure) heart rate or further attributes. This collected data can thus serve to predict own behaviour pattern (fitness progress, stress, etc.) based on already existing tracks. In this work, we evaluate whether existing tracks of an athlete can be used to predict the time for a given route. This service is already available on different onlin-platforms such as googlemaps or swissmobile, but neither the fitness level, age, weight nor the gender are taken into account. here, apps can be used that analyze these different parameters individually for each athlete. However, to enable this interpretation step, there is a need of a) evaluating the accuracy of the measured data and b) determining the variables that lead to the desired output (in our case, time). In the study by @gilgen-ammann2020a, the accuracy of the recorded distances of eight commercially available sports watches from Apple, Coros, Garmin, Polar and Suunto was examined in different areas and at different speeds. The results showed that the recorded systematic errors (±limits of agreements) when all measurement areas combined ranged between 3.7 (±195.6) m and -101.0 (±231.3) m, and the mean absolute percentage errors ranged from 3.2% to 6.1%. These results lead to the conclusion that the acquired coordinates should be aligned with a suitable digital elevation model DEM (e.g. DHM25) before further use of the data.
+Sport watches are a popular tool for monitor and regulate training activities among both professional and amateur athletes. Depending on the product, in addition to GPS data, they also record altitude (e.g. based on air pressure) heart rate or further attributes. This collected data can thus serve to predict some own behavior patterns, such as fitness progress, stress, etc. In this work, it will be evaluated whether existing tracks of an athlete can be used to predict the individual time for a given route. This service is already available on different online-platforms such as googlemaps or swissmobile, but neither the fitness level, age, weight, nor the gender are taken into account for those calculations. Here, apps can be used which analyze those different parameters individually. However, to enable this interpretation step, there is a need of a) evaluating the accuracy of the measured data and b) determining the variables that lead to the desired output (in our case- time). In the study by @gilgen-ammann2020a, the accuracy of the recorded distances of eight commercially available sports watches from Apple, Coros, Garmin, Polar and Suunto was examined in different areas and at different speeds. The results showed that the recorded systematic errors (±limits of agreements) when all measurement areas combined ranged between 3.7 (±195.6) m and -101.0 (±231.3) m, and the mean absolute percentage errors ranged from 3.2% to 6.1%. These results lead to the conclusion that the acquired coordinates should be aligned with a suitable digital elevation model DEM (e.g. DHM25) before further use of the data.
 
 ### 2.1 research questions <a name="subparagraph1"></a>
 
@@ -58,21 +58,23 @@ Sport watches are a popular tool for monitor and regulate training activities am
 
 ### 2.1 Preparation of data <a name="subparagraph2"></a>
 
-A dataset (data.frame) was generated using sports tracks data from a garmin-sportwatch from different anonymous athletes (athlete 01, athlete 02).The data which can be obtained via the Garmin portal comes within the .fit format. The raw .fit file include spatio-temporal information and heart-rates, such as timestamp, position (Latitude and Longitude), distance, enhanced-speed, enhanced-altitude, heart-rate (BPM), cadence (cadence is defined as the total number of steps per minute), fractional-cadence(). Furthermore the tracks are already divided into the corresponding type of sport "jogging", "hiking", "biking". All files with the format \*.fit are imported from the R project folder and were merged into a single Data.frame. All other Data.frames which were generated are deleted in order to gain only one entire dataframe to work with.
+A dataset (data.frame) was generated using sports tracks data from a garmin-sportwatch from different anonymous athletes (athlete 01, athlete 02, athlete 03). For this purpose, the files of every athlete must be labelled with \_a1, \_a2 or a_3 in advanced. The data which can be obtained via the Garmin portal comes within the .fit format. The raw .fit file include spatio-temporal information and heart-rates, such as timestamp, position (Latitude and Longitude), distance, enhanced-speed, enhanced-altitude, heart-rate (BPM), cadence (cadence is defined as the total number of steps per minute), fractional-cadence(). Furthermore the tracks are already divided into the corresponding type of sport "jogging", "hiking", "biking". All files with the format \*.fit are imported from the R project folder and were merged into a single Data.frame. All other Data.frames which were generated are deleted in order to gain only one entire data.frame to work with.
 
-### 2.2 Evaluation of data <a name="subparagraph3"></a>
-
-Since distance, speed ("enhanced_speed") and altitude ("enhanced_altitude") values are already available in the .fit files, they are compared with our own calculated results.
+### 2.2 Preparation and evaluation of data <a name="subparagraph3"></a>
 
 In order to distinguish between the different tracks of an athlete, an individual ID per track had to be created first. This was fulfilled by determining the time lag first, i.e. the time that elapsed between 2 recorded points. A new "activity_ID" was then given if timelag \> 1 hour (3600s).
 
-The distance recorded by the watch was then compared with calculate Euclidian step length. To calculate euclidean distance, an sf dataframe was created and converted to Swiss national coordinate system CH1903+ LV95. Moreover, a rolling window function with different k-values was generated in order to smoothen the time step-values. With this, speed was also calculated, compared with the data from the sportwatch (enhanced_speed multiplied by 3.6 to get the unit km/h) and plotted. The plots of 6 randomly selected tracks show that there are hardly any deviations between distance (and speed) from the .fit file and the calculated distance / speed values. Therefore, the distances from the sports watch are used for further calculations.
+Since distance, speed ("enhanced_speed") and altitude ("enhanced_altitude") values are already available in the .fit files, they are compared with our own calculated results.
+
+The distance recorded by the watch was compared with calculated Euclidean step length. To calculate euclidean distance, an sf data.frame was created and converted to Swiss national coordinate system CH1903+ LV95. Moreover, a rolling window function with different k-values was generated in order to smoothen the time step-values. With this, speed was also calculated, compared with the data from the sportwatch (enhanced_speed multiplied by 3.6 to get the unit km/h) and plotted. The plots of 6 randomly selected tracks show that there are hardly any deviations between distance (and speed) from the .fit file and the calculated distance / speed values. Therefore, the distances from the sports watch are used for further calculations.
 
 To evaluate the altitude data arrived from air pressure, a suitable digital elevation model DEM (e.g. DHM25) was used in order to compare the information of the .fit files. For efficient calculations a dataframe containing only used positions was generated. [hier weitere Erklärung]. Then the altitude difference between pressure measurement and DHM layer was calculated and its differences were plotted.
 
 ## 3 Results <a name="paragraph2"></a>
 
-### 3.1 Comparison tracked data vs. calculated data <a name="subparagraph1"></a>
+### 3.1 Data preparation  <a name="subparagraph1"></a>
+
+#### 3.1.2 Comparison tracked data vs. calculated data <a name="subparagraph1"></a>
 
 **A) Distance**
 
@@ -94,7 +96,7 @@ evaluate altitude with DEM
 
 ![Fig. 2](plots_figures/altitude_difference.jpg "Difference altitude")
 
-### 3.1 Research Question 1 <a name="subparagraph1"></a>
+### 3.3 Research Question 1 <a name="subparagraph1"></a>
 
 To answer research question 1, an exploratory data analysis (EDA) of the collected tracks was first conducted.
 
@@ -104,14 +106,35 @@ To answer research question 1, an exploratory data analysis (EDA) of the collect
 
 How altitude differences "up" affect speeds:
 
+### 3.4 Research Question 2 <a name="subparagraph1"></a>
 
-### 3.2 Research Question 2 <a name="subparagraph1"></a>
+In this chapter the goal was to indicate specific behavioral patterns (e.g. speed, breaks, or similar) in the sports data and when they occur.
 
-In this chapter the goal was to indicate specific behavioural patterns (e.g. speed, breaks, or similar) in the sports data and when they occur.
+#### 3.4.1 Moving/breaking <a name="subparagraph1"></a>
 
-### 3.3 Research Question 3 <a name="subparagraph1"></a>
+In order to produce a model in chapter 3.5, some framework conditions must first be established. For this purpose, the length of the tracks, the actual running time and the breaks per track were identified.
 
-#### 3.3.1 Validation
+To identify possible outliers,
+
+The statistical analysis showed that track 1, 9, 14 should be removed and that the running time for the prediction model should not be longer than 3h (system boundary).
+
+#### 3.4.2 Heart pulse <a name="subparagraph1"></a>
+
+According to Such and Meyer (2010) the maximum heart rate (HRmax) is calculated as 220-age for running and 200-age for biking (rule of thumb). Also, women-specific calculations such as HFmax = 206 - (age x 0.88) (also rule of thumb) exist (Gulati et al). Since only data from male athletes exist in this work, it will not be used further. Therefore, it is important that the data used is up to date or at leas approximately the same as the current age.
+
+According to the American Heart Association, the following target heart rate are recommended:
+
+-    Moderate exercise intensity: 50% to about 70% of your maximum heart rate.
+
+-    Vigorous exercise intensity: 70% to about 85% of your maximum heart rate.
+
+For beginners the target heart rate will even be smaller. It is the athlete's choice which training level to select. However, it should not be higher than 85%.
+
+Therefore
+
+### 3.5 Research Question 3 <a name="subparagraph1"></a>
+
+#### 3.5.1 Validation
 
 ## 4 Discussion <a name="discussion"></a> {#discussion}
 
