@@ -82,6 +82,53 @@ full$activity_ID <- cumsum(full$activity_conter == TRUE)  # create acitiviy_ID b
 
 ```
 
+####Remove “static points”
+
+Define threshold: choose a threshold between stops and moves --> depending on data and question!
+
+
+```{r}
+#a) check data: histogram for speed for different tracks 
+
+speed_mean <- mean(full$enhaced_speed)
+
+full<- full %>% 
+  ggplot()+
+  geom_histogram(aes(enhanced_speed))+
+  geom_vline(data=mu, aes(xintercept=enhanced_speed),
+             linetype="dashed")
+
+```
+
+
+
+
+
+tracks <- tracks %>%
+  rowwise() %>%
+  mutate(
+    stepMean = mean(c(nMinus5,nMinus4,nMinus3,nMinus2, nMinus1,nPlus1,nPlus2,nPlus3,nPlus4, nPlus5))) %>%
+  ungroup()
+#create boxplot 
+ggplot(tracks,na.rm= TRUE)+
+  geom_boxplot(mapping = aes(stepMean))
+
+#create histogramm
+ggplot(tracks,na.rm= TRUE)+
+  geom_histogram(mapping = aes(stepMean))
+
+##all points which are bigger than the mean of stepMean are defined as static (moving)
+
+tracks <- tracks %>% 
+  ungroup() %>%
+  mutate(static = stepMean < mean(stepMean, na.rm = TRUE))
+
+#create a new dataframe with filterd 
+tracks_filter <- tracks %>%
+  filter(!static)
+
+
+
 ### 1.3.2 calculate speed / add rollmean function
 ```{r}
 # speed from tracker in km/h
@@ -145,7 +192,7 @@ options(digits = 3)
 full_sf$x <- st_coordinates(full_sf$geometry)[,1]
 full_sf$y <- st_coordinates(full_sf$geometry)[,2]
 
-# calculate Euclidian step length
+# calculate Euclidian step length and speed
 full_sf <- full_sf %>%
   group_by(activity_ID) %>%
   mutate(
@@ -153,7 +200,8 @@ full_sf <- full_sf %>%
     steplenght_sum = cumsum(replace_na(steplength,0)),
     hightdiff = lead(enhanced_altitude) - enhanced_altitude,
     hightdiff_up = ifelse(hightdiff > 0, hightdiff, 0),
-    hightdiff_down = ifelse(hightdiff < 0, hightdiff, 0)
+    hightdiff_down = ifelse(hightdiff < 0, hightdiff, 0), 
+    
   )
 
 #compare distance and steplength_sum
@@ -179,7 +227,9 @@ ggplotly(compare_distance)
 
 full_sf <- full_sf %>%
   group_by(activity_ID) %>%
-  mutate(speed_calculated = 3.6*(steplength/timelag)) 
+  mutate(speed_calculated = steplength/timelag, 
+         speed_calculated_kmh = 3.6*(steplength/timelag)
+  )
 
 #compare calculated speed with speed from sport watch (speed_enhanced)
 
@@ -187,16 +237,21 @@ full_sf <- full_sf %>%
 compare_speed <- full_sf %>%
   filter(activity_ID == random_tracks) %>%
   ggplot() +
-  geom_point(aes(timestamp, enhanced_speed_kmh, col = "blue", alpha=0.1)) +
-  geom_point(aes(timestamp, speed_calculated, col = "red", alpha=0.1)) +
+  geom_point(aes(timestamp, enhanced_speed_kmh, col = "measurement")) +
+  #geom_point(aes(timestamp, speed_calculated_kmh, col = "calculated speed")) + #das kann nicht sein
+  geom_point(aes(timestamp, enhanced_speed_05, col = "rolling_window, k=5")) +
+  geom_point(aes(timestamp, enhanced_speed_10, col = "rolling_window, k=10")) +
+  
   theme_bw() +
   theme(legend.position = "bottom") +
   facet_wrap(~activity_ID, scales = "free") +
-  labs(x = "\n time", y = "speed\n")
+  labs(x = "\n time", y = "speed in km per h\n")
 
 compare_speed
 
 ggplotly(compare_speed)
+
+
 
 ```
 From the plots it can be shown that the distance (and speed) from the .fit file are very close to the calculated distance / speed values.
