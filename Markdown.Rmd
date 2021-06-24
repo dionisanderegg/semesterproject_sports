@@ -104,37 +104,16 @@ For the distance between two GPS fixes a SF object must be created and converted
 ```{r}
 # Calculate timelag
 full$timelag <- as.integer(difftime(full$timestamp, lag(full$timestamp)))
-
 # activity_ID (new ID if timelag > 1 hour)
 full$activity_conter <- ifelse(abs(full$timelag) > 3600, TRUE, FALSE) 
 full$activity_conter[1] <- TRUE  # ID 1 = TRUE, as this is activity one
 full$activity_ID <- cumsum(full$activity_conter == TRUE)  # create acitiviy_ID based on counter
-
-# Overwrite timelag to prevent from huge timelags between different activities:
-full <- full %>%
-  group_by(activity_ID) %>%
-  mutate(timelag = as.integer(difftime(timestamp, lag(timestamp))))
 
 ```
 
 ###1.3.2 calculate Euclidean distance
 
 ```{r}
-<<<<<<< HEAD
-#a) check data: histogram for speed for different tracks 
-
-speed_mean <- mean(full$enhanced_speed)
-
-full<- full %>% 
-  ggplot()+
-  geom_histogram(aes(enhanced_speed))+
-  geom_vline(data=mu, aes(xintercept=enhanced_speed),
-             linetype="dashed")
-
-```
-
-=======
->>>>>>> ff098b823d4f19b97b2715c9dc1a284f3041ac3c
 
 # Create sf and convert to CH1903+ LV95 to calculate the euculidian distance
 full_sf <- st_as_sf(full, coords = c("position_long", "position_lat"),
@@ -181,7 +160,6 @@ ggplotly(compare_distance)
 ### 1.3.3 calculate speed / add rollmean function
 ```{r}
 # speed from tracker in km/h
-full$enhanced_speed_kmh <- full$enhanced_speed *3.6
 full_sf$enhanced_speed_kmh <- full$enhanced_speed *3.6
 
 # smooth speed and heart rate by rollmenans
@@ -197,12 +175,12 @@ full_sf <- full_sf %>%
     enhanced_speed_60 = rollmean(enhanced_speed_kmh, k = 60, fill = NA, allign = "left")
   )
 
-full <- full %>%
+full_sf <- full_sf %>%
   group_by(activity_ID) %>%
   mutate(Track_Distance = max(distance)) %>%
   ungroup()
 
-full %>%
+full_sf %>%
   gather(window, speed, enhanced_speed_00 : enhanced_speed_60) %>%
   ggplot(aes(window, speed)) +
   geom_violin() +
@@ -212,7 +190,7 @@ full %>%
   labs(x = "\nsize of the moving window", y = "speed in km/h\n")
 
 #check moving windows for track distances > 10km
-full %>%
+full_sf %>%
   filter(Track_Distance > 10000) %>%
   gather(window, speed, enhanced_speed_00 : enhanced_speed_60) %>%
   ggplot(aes(window, speed)) +
@@ -223,7 +201,7 @@ full %>%
   labs(x = "\nsize of the moving window", y = "speed in km/h\n")
 
 #check moving windows for track distances < 10km
-full %>%
+full_sf %>%
   filter(Track_Distance < 10000) %>%
   gather(window, speed, enhanced_speed_00 : enhanced_speed_60) %>%
   ggplot(aes(window, speed)) +
@@ -234,7 +212,7 @@ full %>%
   labs(x = "\nsize of the moving window", y = "speed in km/h\n")
 
 #create table with overview of mean, sd, var for different tracks and different moving windows
-full_smoothed_speed <- full %>%
+full_smoothed_speed <- full_sf %>%
   dplyr::select(athlete, activity_ID, enhanced_speed_kmh : enhanced_speed_60) %>%
   gather(window, speed, enhanced_speed_00 : enhanced_speed_60) %>%
   group_by(window, activity_ID) %>%
@@ -255,7 +233,7 @@ ggplot(full_smoothed_speed, aes(window, mean)) +
 random_track <-sample(full$activity_ID, 1)
 
 # How "k-value" affects the variety in speed:
-full %>%
+full_sf %>%
   filter(activity_ID == random_track) %>%
   gather(smoother, speed, 
          enhanced_speed_kmh, enhanced_speed_kmh, enhanced_speed_02 : enhanced_speed_60) %>%
@@ -438,7 +416,7 @@ full_sf_join %>%
 
 # How altitude differences up affect speeds
 diff_up <- full_sf %>%
-  filter(activity_ID == 2) %>%
+  filter(activity_ID == 1) %>%
   ggplot(aes(timestamp, enhanced_speed_05)) +
   geom_line()+
   geom_line(aes(y = rollmean(hightdiff_up, k = 15, fill = NA, allign = "left")*10), col = "green3") +
@@ -452,7 +430,7 @@ ggplotly()
 
 # How altitude differences down affect speeds
 diff_down <- full_sf %>%
-  filter(activity_ID == 2) %>%
+  filter(activity_ID == 1) %>%
   ggplot(aes(timestamp, enhanced_speed_05)) +
   geom_line()+
   geom_line(aes(y = rollmean(-hightdiff_down, k = 15, fill = NA, allign = "left")*10), col = "green4") +
@@ -639,7 +617,7 @@ library(leaflet)
 # Track 1
 m1 <- full %>%
   filter(activity_ID ==1) %>%
-  select(position_long, position_lat) %>% 
+  dplyr::select(position_long, position_lat) %>% 
   as.matrix() %>%
   leaflet(  ) %>%
   addTiles() %>%
@@ -862,7 +840,7 @@ down_param_min <- allmodels.min$hightdiff_down[1]
 zf$time_estimated_min <- zf$distance *distance_param_min + zf$hightdiff_up * up_param_min + zf$hightdiff_down * down_param_min
 
 zf %>% 
-  select(activity_ID, time_measured = time, time_estimated, time_estimated_min, distance, hightdiff_up, hightdiff_down) %>%
+  dplyr::select(activity_ID, time_measured = time, time_estimated, time_estimated_min, distance, hightdiff_up, hightdiff_down) %>%
   gather(type, value, time_measured, time_estimated, time_estimated_min) %>%
   ggplot(aes(activity_ID, value, col = type)) +
   geom_point() +
