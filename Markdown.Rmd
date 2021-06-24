@@ -44,7 +44,7 @@ library(tiff)
 Import all files with extension .fit from the R project folder and merge them into a single Data.frame. Delete all other Data.frames so that only the entire DF is in the workspace. Various calculations have to be done only once (timelag, distance etc.).
 
 ```{r message=TRUE, warning=FALSE}
-
+############### Filter data fro one athlete only (andd)
 # Files of every ahtlete must be labelled with _a1, _a2 or a_3 before the .fit extension.
 
 #  Get all the files per athlete
@@ -90,6 +90,8 @@ full <- bind_rows(a1, a2, a3)
 
 keep(full, sure = TRUE)
 
+############# Filter here! User defines which athlete is considered (andd)
+
 #check full
 head(full)
 ```
@@ -109,6 +111,8 @@ full$activity_conter <- ifelse(abs(full$timelag) > 3600, TRUE, FALSE)
 full$activity_conter[1] <- TRUE  # ID 1 = TRUE, as this is activity one
 full$activity_ID <- cumsum(full$activity_conter == TRUE)  # create acitiviy_ID based on counter
 
+# Group_by(acitvityID) => TImelag (andd)
+
 ```
 
 ###1.3.2 calculate Euclidean distance
@@ -125,202 +129,8 @@ options(digits = 3)
 # get x and y coordinates from sf geometry
 full_sf$x <- st_coordinates(full_sf$geometry)[,1]
 full_sf$y <- st_coordinates(full_sf$geometry)[,2]
-
-# calculate Euclidian step length and speed
-full_sf <- full_sf %>%
-  group_by(activity_ID) %>%
-  mutate(
-    steplength = sqrt((x - lead(x))^2 + (y - lead(y))^2),
-    steplenght_sum = cumsum(replace_na(steplength,0)),
-    hightdiff = lead(enhanced_altitude) - enhanced_altitude,
-    hightdiff_up = ifelse(hightdiff > 0, hightdiff, 0),
-    hightdiff_down = ifelse(hightdiff < 0, hightdiff, 0), 
-    
-  )
-
-#compare distance and steplength_sum
-
-#generate random tracks to check
-random_tracks <-sample(full_sf$activity_ID, 6)
-
-compare_distance <- full_sf %>%
-  filter(activity_ID == random_tracks) %>%
-  ggplot() +
-  geom_point(aes(timestamp, distance, col = "measurement", alpha=0.1)) +
-  geom_point(aes(timestamp, steplenght_sum, col = "euclidian distance", alpha=0.1)) +
-  theme_bw() +
-  theme(legend.position = "bottom") +
-  facet_wrap(~activity_ID, scales = "free") +
-  labs(x = "\n time", y = "distance in meters\n")
-
-compare_distance
-ggplotly(compare_distance)
 ```
 
-### 1.3.3 calculate speed / add rollmean function
-```{r}
-# speed from tracker in km/h
-full_sf$enhanced_speed_kmh <- full$enhanced_speed *3.6
-
-# smooth speed and heart rate by rollmenans
-
-full_sf <- full_sf %>%
-  group_by(activity_ID, athlete) %>%
-  mutate(
-    enhanced_speed_00 = enhanced_speed_kmh,
-    enhanced_speed_02 = rollmean(enhanced_speed_kmh, k = 10, fill = NA, allign = "left"),
-    enhanced_speed_05 = rollmean(enhanced_speed_kmh, k = 10, fill = NA, allign = "left"),
-    enhanced_speed_10 = rollmean(enhanced_speed_kmh, k = 10, fill = NA, allign = "left"),
-    enhanced_speed_30 = rollmean(enhanced_speed_kmh, k = 30, fill = NA, allign = "left"),
-    enhanced_speed_60 = rollmean(enhanced_speed_kmh, k = 60, fill = NA, allign = "left")
-  )
-
-full_sf <- full_sf %>%
-  group_by(activity_ID) %>%
-  mutate(Track_Distance = max(distance)) %>%
-  ungroup()
-
-full_sf %>%
-  gather(window, speed, enhanced_speed_00 : enhanced_speed_60) %>%
-  ggplot(aes(window, speed)) +
-  geom_violin() +
-  facet_wrap(~as.Date(timestamp))+
-  theme_bw() +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
-  labs(x = "\nsize of the moving window", y = "speed in km/h\n")
-
-#check moving windows for track distances > 10km
-full_sf %>%
-  filter(Track_Distance > 10000) %>%
-  gather(window, speed, enhanced_speed_00 : enhanced_speed_60) %>%
-  ggplot(aes(window, speed)) +
-  geom_violin() +
-  facet_wrap(~as.Date(timestamp))+
-  theme_bw() +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
-  labs(x = "\nsize of the moving window", y = "speed in km/h\n")
-
-#check moving windows for track distances < 10km
-full_sf %>%
-  filter(Track_Distance < 10000) %>%
-  gather(window, speed, enhanced_speed_00 : enhanced_speed_60) %>%
-  ggplot(aes(window, speed)) +
-  geom_violin() +
-  facet_wrap(~as.Date(timestamp))+
-  theme_bw() +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
-  labs(x = "\nsize of the moving window", y = "speed in km/h\n")
-
-#create table with overview of mean, sd, var for different tracks and different moving windows
-full_smoothed_speed <- full_sf %>%
-  dplyr::select(athlete, activity_ID, enhanced_speed_kmh : enhanced_speed_60) %>%
-  gather(window, speed, enhanced_speed_00 : enhanced_speed_60) %>%
-  group_by(window, activity_ID) %>%
-  summarise(mean = mean(speed, na.rm = TRUE),
-            sd = sd(speed, na.rm = TRUE),
-            var = var(speed, na.rm = TRUE))
-full_smoothed_speed
-
-#plot mean speedn and variance per track
-ggplot(full_smoothed_speed, aes(window, mean)) +
-  geom_point() +
-  geom_errorbar(aes(ymin = mean -var, ymax = mean+ var)) +
-  facet_wrap(~activity_ID) +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1))+
-  labs(x = "\n size of the moving window", y = "mean speed and variance per track\n")
-
-#generate one random track in order to check (for athlete 1)
-random_track <-sample(full$activity_ID, 1)
-
-# How "k-value" affects the variety in speed:
-full_sf %>%
-  filter(activity_ID == random_track) %>%
-  gather(smoother, speed, 
-         enhanced_speed_kmh, enhanced_speed_kmh, enhanced_speed_02 : enhanced_speed_60) %>%
-  ggplot(aes(timestamp, speed, col = smoother)) +
-  geom_line() +
-  theme_bw()
-ggplotly()
-
-
-#calculate further speed via steplength/ timelag
-
-full_sf <- full_sf %>%
-  group_by(activity_ID) %>%
-  mutate(speed_calculated = steplength/timelag, 
-         speed_calculated_kmh = 3.6*(steplength/timelag)
-  )
-
-#compare calculated speed with speed from sport watch (speed_enhanced)
-
-compare_speed <- full_sf %>%
-  filter(activity_ID == random_tracks) %>%
-  ggplot() +
-  geom_point(aes(timestamp, enhanced_speed_kmh, col = "measurement")) +
-  #geom_point(aes(timestamp, speed_calculated_kmh, col = "calculated speed")) + #das kann nicht sein
-  geom_point(aes(timestamp, enhanced_speed_05, col = "rolling_window, k=5")) +
-  geom_point(aes(timestamp, enhanced_speed_10, col = "rolling_window, k=10")) +
-  
-  theme_bw() +
-  theme(legend.position = "bottom") +
-  facet_wrap(~activity_ID, scales = "free") +
-  labs(x = "\n time", y = "speed in km per h\n")
-
-compare_speed
-
-ggplotly(compare_speed)
-
-
-
-```
-
-
-From the plots it can be shown that the distance (and speed) from the .fit file are very close to the calculated distance / speed values.
-
---> Continue with the data from the .fit file?
-
-
-
-## 1.4 Remove “static points”
-
-Define threshold: choose a threshold between stops and moves --> depending on data and question!
-
-
-```{r}
-
-#Remove “static points”
-
-#Define threshold 
-
-#plot trajectories with behavior pattern (static/moving) for Athlete 01 
-#a) check data: histogram for speed for different tracks 
-
-speed_mean <- mean(full_sf$enhanced_speed_05, na.rm=TRUE)
-
-full_sf %>% 
-  ggplot()+
-  geom_histogram(aes(enhanced_speed_05))+
-  geom_vline(aes(xintercept=speed_mean),linetype="dashed", color="blue")+
-  geom_vline(aes(xintercept=3),linetype="dashed", color="red")+
-  geom_text(x=3, y=-30, label="Threshold", color="red")+#set threshold = 3 from visual context
-  geom_text(x=9.92, y=-30, label="mean", color="blue")
-
-
-##all points which are < than the threshold value of 3m/s of enhanced_speed_kmh are defined as static (moving)
-
-tracks <- full_sf %>% 
-  ungroup() %>%
-  mutate(static = enhanced_speed_05 < 3)
-
-#create a new data.frame with filtered 
-tracks_filter <- tracks %>%
-  filter(!static)
-
-```
-
-
-
-## 1.4 evaluate altitude with DEM => After creating full_sf!
 
 ```{r}
 ##  digital elevation model to verify altitude for each GPS location
@@ -384,13 +194,15 @@ full_sf$y_round <- as.numeric(2 * round(full_sf$y/2) + 1)
 
 
 # Join elevation 
-full_sf_join <- left_join(full_sf, data.matrix, by = c("x_round", "y_round"))
+full_sf <- left_join(full_sf, data.matrix, by = c("x_round", "y_round"))
+
+#####  dplyr::rename  => change layer to altitude_DEM (andd)
 
 # Calculate altitude difference between pressure measurement and DHM layer.
-full_sf_join$altitude_diff <- full_sf_join$layer - full_sf_join$enhanced_altitude
+full_sf$altitude_diff <- full_sf$layer - full_sf$enhanced_altitude
 
 # Test accuracy of elevation measurement
-full_sf_join %>%
+full_sf %>%
   gather(source, value, enhanced_altitude, layer) %>%
   filter(activity_ID < 10) %>%
   ggplot(aes(timestamp, value, col = source)) +
@@ -400,13 +212,171 @@ full_sf_join %>%
   labs(x = "\ntimestamp hh:mm", y = "altitude measurement m a.s.l.\n")+
   theme(legend.position = "bottom")
 
-full_sf_join %>%
+full_sf %>%
   filter(activity_ID < 10) %>%
   ggplot(aes(timestamp, altitude_diff)) +
   geom_line() +
   facet_wrap(~activity_ID, scales = "free") +
   theme_bw() +
   labs(x = "\ntimestamp hh:mm", y = "altitude difference (DEM - Tracker) in m\n")
+
+#### Use DEM instead of pressure measurement 
+```
+
+```{r}
+# calculate Euclidian step length and speed
+full_sf <- full_sf %>%
+  group_by(activity_ID) %>%
+  mutate(
+    steplength = sqrt((x - lead(x))^2 + (y - lead(y))^2),
+    steplenght_sum = cumsum(replace_na(steplength,0)),
+    hightdiff = lead(layer) - layer,
+    hightdiff_up = ifelse(hightdiff > 0, hightdiff, 0),
+    hightdiff_down = ifelse(hightdiff < 0, hightdiff, 0)
+  )
+
+#compare distance and steplength_sum
+
+#generate random tracks to check
+random_tracks <-sample(full_sf$activity_ID, 6)
+
+#### Distance (absolute or in percent) instead of comparison (tophial)
+
+compare_distance <- full_sf %>%
+  filter(activity_ID == random_tracks) %>%
+  ggplot() +
+  geom_point(aes(timestamp, distance, col = "measurement"), alpha = 0.1) +
+  geom_point(aes(timestamp, steplenght_sum, col = "euclidian distance"), alpha = 0.1) +
+  theme_bw() +
+  theme(legend.position = "bottom") +
+  facet_wrap(~activity_ID, scales = "free") +
+  labs(x = "\n time", y = "distance in meters\n")
+
+compare_distance
+ggplotly(compare_distance)
+```
+
+
+### 1.3.3 calculate speed / add rollmean function
+```{r}
+# speed from tracker in km/h
+full_sf$enhanced_speed_kmh <- full$enhanced_speed *3.6
+
+# smooth speed and heart rate by rollmenans
+
+full_sf <- full_sf %>%
+  group_by(activity_ID, athlete) %>%
+  mutate(
+    enhanced_speed_00 = enhanced_speed_kmh,
+    enhanced_speed_02 = rollmean(enhanced_speed_kmh, k = 2, fill = NA, allign = "left"),
+    enhanced_speed_03 = rollmean(enhanced_speed_kmh, k = 3, fill = NA, allign = "left"),
+    enhanced_speed_05 = rollmean(enhanced_speed_kmh, k = 5, fill = NA, allign = "left"),
+    enhanced_speed_10 = rollmean(enhanced_speed_kmh, k = 10, fill = NA, allign = "left"),
+    enhanced_speed_50 = rollmean(enhanced_speed_kmh, k = 50, fill = NA, allign = "left")
+  )
+
+full_sf <- full_sf %>%
+  group_by(activity_ID) %>%
+  mutate(Track_Distance = max(distance)) %>%
+  ungroup()
+
+######## Use this graph for report
+full_sf %>%
+  gather(window, speed, enhanced_speed_00 : enhanced_speed_50) %>%
+  ggplot(aes(window, speed)) +
+  geom_violin() +
+  facet_wrap(~as.Date(timestamp))+
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  labs(x = "\nsize of the moving window", y = "speed in km/h\n")
+
+#check moving windows for track distances > 10km
+full_sf %>%
+  filter(Track_Distance > 10000) %>%
+  gather(window, speed, enhanced_speed_00 : enhanced_speed_50) %>%
+  ggplot(aes(window, speed)) +
+  geom_violin() +
+  facet_wrap(~as.Date(timestamp))+
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  labs(x = "\nsize of the moving window", y = "speed in km/h\n")
+
+#check moving windows for track distances < 10km
+full_sf %>%
+  filter(Track_Distance < 10000) %>%
+  gather(window, speed, enhanced_speed_00 : enhanced_speed_50) %>%
+  ggplot(aes(window, speed)) +
+  geom_violin() +
+  facet_wrap(~as.Date(timestamp))+
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  labs(x = "\nsize of the moving window", y = "speed in km/h\n")
+
+#generate one random track in order to check (for athlete 1)
+random_track <-sample(full$activity_ID, 1)
+
+############## Use in Report!
+# How "k-value" affects the variety in speed:
+full_sf %>%
+  filter(activity_ID == random_track) %>%
+  gather(smoother, speed, enhanced_speed_00 : enhanced_speed_50) %>%
+  ggplot(aes(timestamp, speed, col = smoother)) +
+  geom_line() +
+  theme_bw()
+ggplotly()
+
+
+#### USe k = 3 for further analysis
+
+```
+
+
+From the plots it can be shown that the distance (and speed) from the .fit file are very close to the calculated distance / speed values.
+
+--> Continue with the data from the .fit file?
+
+
+
+## 1.4 Remove “static points”
+
+Define threshold: choose a threshold between stops and moves --> depending on data and question!
+
+
+```{r}
+
+#Remove “static points”
+
+#Define threshold 
+
+#plot trajectories with behavior pattern (static/moving) for Athlete 01 
+#a) check data: histogram for speed for different tracks 
+
+speed_mean <- mean(full_sf$enhanced_speed_03, na.rm=TRUE)
+
+full_sf %>% 
+  ggplot()+
+  geom_histogram(aes(enhanced_speed_03), binwidth = 0.5)+
+  geom_vline(aes(xintercept=speed_mean),linetype="dashed", color="blue")+
+  geom_vline(aes(xintercept=3.25),linetype="dashed", color="red")+
+  geom_text(x=3.25, y=-30, label="Threshold", color="red")+#set threshold = 3 from visual context
+  geom_text(x=9.92, y=-30, label="mean", color="blue")
+
+### Define as static when speed < 3.25 km/h
+
+
+##all points which are < than the threshold value of 3m/s of enhanced_speed_kmh are defined as static (moving)
+#### Save in full_sf instead of tracks
+full_sf <- full_sf %>% 
+  ungroup() %>%
+  mutate(static = enhanced_speed_03 <= 3.25)
+```
+
+
+
+## 1.4 evaluate altitude with DEM => After creating full_sf!
+
+```{r}
+# copied to 1.3
 
 ```
 
@@ -416,13 +386,13 @@ full_sf_join %>%
 
 # How altitude differences up affect speeds
 diff_up <- full_sf %>%
-  filter(activity_ID == 1) %>%
-  ggplot(aes(timestamp, enhanced_speed_05)) +
+  filter(activity_ID == 2) %>%
+  ggplot(aes(timestamp, enhanced_speed_03)) +
   geom_line()+
   geom_line(aes(y = rollmean(hightdiff_up, k = 15, fill = NA, allign = "left")*10), col = "green3") +
   scale_y_continuous(
-    "speed (green)\n", 
-    sec.axis = sec_axis(~ . * 0.1, name = "hight difference\n")
+    "speed (black)\n", 
+    sec.axis = sec_axis(~ . * 0.1, name = "hight difference (green)\n")
   )+
   theme_bw()
 
@@ -430,23 +400,21 @@ ggplotly()
 
 # How altitude differences down affect speeds
 diff_down <- full_sf %>%
-  filter(activity_ID == 1) %>%
+  filter(activity_ID == 2) %>%
   ggplot(aes(timestamp, enhanced_speed_05)) +
   geom_line()+
   geom_line(aes(y = rollmean(-hightdiff_down, k = 15, fill = NA, allign = "left")*10), col = "green4") +
   scale_y_continuous(
-    "speed (green)\n", 
-    sec.axis = sec_axis(~ . * 0.1, name = "hight difference\n")
+    "speed (black)\n", 
+    sec.axis = sec_axis(~ . * 0.1, name = "hight difference (green)\n")
   ) +
   theme_bw()
 ggplotly()
 
 figure_speed <- ggarrange(diff_down, diff_up,
-                    labels = c("A", "B"),
+                    labels = c("up", "down"),
                     ncol = 2, nrow = 1)
 figure_speed
-
-
 ```
 
 Data analysis of individual tracks
@@ -454,7 +422,7 @@ Data analysis of individual tracks
 ## 2.1 General overview => Lenths, times, hightdifferences...
 
 ```{r}
-full_long <- gather(full, type, value, enhanced_altitude:heart_rate, enhanced_speed_kmh)
+full_long <- gather(full_sf, type, value, layer, heart_rate, enhanced_speed_03)
 
 library(shiny)
 library(plotly)
@@ -511,19 +479,19 @@ The trend visually shows a decrease in speed and an increase in heart rate with 
 #calculate duration of each track without breaks and
 #calculate duration of breaks per track
 
-full_short <- tracks %>% 
+full_sf_filtered <- full_sf %>% 
   group_by(activity_ID) %>% 
   mutate(duration_whole_track = as.numeric(difftime(max(timestamp), min(timestamp), units = "hours"))) %>% #in hours
   ungroup() %>% 
   group_by(activity_ID, static) %>% 
   filter(static == FALSE) %>% 
-    mutate(duration_moving = as.numeric(difftime(max(timestamp), min(timestamp), units = "hours"))) %>% 
+    mutate(duration_moving = sum(timelag, na.rm = TRUE) / 3600) %>% 
   ungroup() %>% 
   mutate(duration_breaks = (duration_whole_track - duration_moving), 
          duration_breaks_min = (duration_breaks*60))
 
 
-full_short <- full_short %>% 
+full_short <- full_sf_filtered %>% 
   group_by(activity_ID) %>% 
   summarize(duration_track = mean(duration_whole_track), 
             duration_moving = mean(duration_moving), 
@@ -537,7 +505,7 @@ full_short <- full_short %>%
     theme_bw()+
     ylim(0,3)+
     labs(title="moving duration of the tracks",
-        x ="time in hour", y = "recorded track")
+        x ="tracks", y = "time in hours")
   
    
 min(full_short$duration_moving)
@@ -561,19 +529,24 @@ full_short %>%
   mutate(outlier = ifelse(is_outlier(duration_moving), activity_ID, as.numeric(NA))) %>%
   ggplot(aes(x = activity_ID, y = duration_moving)) +
     geom_boxplot() +
-    geom_text(aes(label = outlier), na.rm = TRUE, hjust = -0.2)+
+    geom_text(aes(x = 9.5, label = outlier), na.rm = TRUE, hjust = -0.2)+
   theme_bw()+
     labs(title="moving duration of the tracks",
-        x ="time in hour", y = "different tracks athlete 01")
+        x ="", y = "time in hours\n") +
+  theme(axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank())
 
   
 
-#track 1,8 and 14 has to be controlled for possible outliers
+#track 1 has to be controlled for possible outliers
 
 ```
 
 ## 2.3  overview per track /summary
 ```{r}
+
+#### Use values from full_short! (andd)
 zf <- full_sf %>% #zf because of "Zusammenfassung" in german
   st_drop_geometry() %>%
   group_by(activity_ID) %>%
@@ -589,6 +562,7 @@ zf <- full_sf %>% #zf because of "Zusammenfassung" in german
 
 
 ## 2.4 Map visualizations
+
 Analyse some tracks and show them on map (interactive?)
 
 Tracks auf Karten darstellen (verschiedene Packages und Methoden). Welche Packages eignen sich?
@@ -597,9 +571,10 @@ Tracks auf Karten darstellen (verschiedene Packages und Methoden). Welche Packag
 
 ggplot:
 ```{r, message=FALSE}
+#### Tidy this chapter (andd)
 # Visualisierung mit ggplot ohne Karte
 library(tidyverse)
-ggplot(filter(full, enhanced_speed_kmh > 4), aes (position_lat, position_long, col = enhanced_speed_kmh)) +
+ggplot(filter(full_sf, enhanced_speed_kmh > 4), aes (position_lat, position_long, col = enhanced_speed_kmh)) +
   geom_point() +
   facet_wrap(~activity_ID, scales = "free") +
   theme_bw()
@@ -616,23 +591,13 @@ library(leaflet)
 
 # Track 1
 m1 <- full %>%
-  filter(activity_ID ==1) %>%
+  filter(activity_ID ==random_track) %>%
   dplyr::select(position_long, position_lat) %>% 
   as.matrix() %>%
   leaflet(  ) %>%
   addTiles() %>%
   addPolylines( )
 m1
-
-# Track 2
-m2 <- full %>%
-  filter(activity_ID ==2) %>%
-  select(position_long, position_lat) %>% 
-  as.matrix() %>%
-  leaflet(  ) %>%
-  addTiles() %>%
-  addPolylines( )
-m2
 ```
 ### 2.4.3 visualization with ggmap
 
@@ -664,23 +629,15 @@ ggmap(myMap) +
 ## 5.1 pausing - moving pattern
 
 ```{r}
-#Remove “static points”
-
-#Define threshold ---> described in chapter Data preparation
-
 #plot trajectories with behavior pattern (static/moving) for Athlete 01 
-tracks <- tracks %>%
-  rename(
-    "E" = "x",
-    "N" = "y" ) 
-
-athlete01 <-tracks%>% 
-  ggplot(aes(E, N))  +
+athlete01 <- full_sf%>% 
+  ggplot(aes(x = x, y = y))  +
   geom_path() +
   geom_point(aes(colour = static)) +
   theme(legend.position = "right")+
   facet_wrap(~activity_ID)+
   ggtitle("Athlete_01")
+
 
 ggplotly(athlete01)
 
@@ -717,7 +674,7 @@ Also women-specific rules of thumb such as HFmax = 206 - (age x 0.88) exist, but
 
 #max heart rate --literature athlete 1 
 #date of athlete 1
-birth_athelete1 <- as.Date('1992-10-20')
+birth_athelete1 <- as.Date('1991-11-16')
 now <- Sys.time()
 
 age_a1 <- time_length(difftime(now, birth_athelete1), "years")
@@ -752,7 +709,8 @@ ggplotly (tracks_heart%>%
 
 Model basis => Segmeentation of all Tracks 
 ```{r}
-full_sf_min <- full_sf %>%
+#### Use full sf filtered to ensure calculation of running time
+full_sf_min <- full_sf_filtered %>%
   st_drop_geometry() %>%
   group_by("time" = cut(timestamp, "1 min")) %>%
   summarise(
@@ -771,55 +729,10 @@ full_sf_min <- full_sf_min %>%
   filter(time_eff < 100, time_eff > 0, mean_pace < 25)
 ```
 
-
-Multimodel Inference for zf.model
-
-```{r}
-if(!require(MuMIn)){install.packages("MuMIn")}
-library(MuMIn)
-library(gridExtra)
-
-zf.model <- lm(zf$time ~ 0 + zf$distance + zf$hightdiff_up + zf$hightdiff_down, data=zf)
-options(na.action="na.fail")
-allmodels.zf <- dredge(zf.model)
-allmodels.zf
-
-importance(allmodels.zf)
-
-avgmodel.zf<-model.avg(get.models(dredge(zf.model,rank="AICc"),subset=TRUE))
-summary(avgmodel.zf)
-
-# Komischerweise ist das "drittbeste Modell" einiges genauer als das beste Modell...
-distance_param <- allmodels.zf$`zf$distance`[3]
-up_param <- allmodels.zf$`zf$hightdiff_up`[3]
-down_param <- allmodels.zf$`zf$hightdiff_down`[3]
-
-zf$time_estimated <- zf$distance *distance_param + zf$hightdiff_up * up_param + zf$hightdiff_down * down_param
-
-zf %>% 
-  select(activity_ID, time_measured = time, time_estimated, distance, hightdiff_up, hightdiff_down) %>%
-  gather(type, value, time_measured, time_estimated) %>%
-  ggplot(aes(distance, value, col = type)) +
-  geom_point() +
-  geom_line() +
-  geom_text(aes(y = max(zf$time) + 15, label = paste("Dist:", round(distance/1000,1), "km"))) +
-  geom_text(aes(y = max(zf$time) + 10, label = paste("Aufw.:", round(hightdiff_up,0), "m"))) +
-  geom_text(aes(y = max(zf$time) + 5, label = paste("Abw.:", -round(hightdiff_down,0), "m"))) +
-  theme_bw() +
-  labs(x = "\nAktivitäts-ID", y = "Zeitbedarf in min\n")
-
-zf %>% 
-  select(activity_ID, time_measured = time, time_estimated, distance, hightdiff_up, hightdiff_down) %>%
-  gather(type, value, time_measured, time_estimated) %>%
-  ggplot(aes(distance, value, col = type)) +
-  geom_point() +
-  geom_smooth()
-```
-
-
 Multimodel Inference for min.model
 
 ```{r}
+#### ZF: Use moving time (andd)! Sort graphics according to time measured!
 min.model <- lm(time_eff/60 ~ 0 + distance + hightdiff_up + hightdiff_down, data=full_sf_min)
 options(na.action="na.fail")
 allmodels.min <- dredge(min.model)
@@ -841,7 +754,7 @@ zf$time_estimated_min <- zf$distance *distance_param_min + zf$hightdiff_up * up_
 
 zf %>% 
   dplyr::select(activity_ID, time_measured = time, time_estimated, time_estimated_min, distance, hightdiff_up, hightdiff_down) %>%
-  gather(type, value, time_measured, time_estimated, time_estimated_min) %>%
+  gather(type, value, time_measured, time_estimated_min) %>%
   ggplot(aes(activity_ID, value, col = type)) +
   geom_point() +
   geom_line() +
@@ -887,7 +800,7 @@ ggplot(full_sf_min, aes(mean_pace, hightdiff_down)) +
 
 
 ```{r}
-
+valid_time <- 10000 * distance_param_min + 500 * up_param_min + 500 * down_param_min
 
 
 ```
