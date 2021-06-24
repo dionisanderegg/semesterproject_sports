@@ -103,10 +103,16 @@ For the distance between two GPS fixes a SF object must be created and converted
 ```{r}
 # Calculate timelag
 full$timelag <- as.integer(difftime(full$timestamp, lag(full$timestamp)))
+
 # activity_ID (new ID if timelag > 1 hour)
 full$activity_conter <- ifelse(abs(full$timelag) > 3600, TRUE, FALSE) 
 full$activity_conter[1] <- TRUE  # ID 1 = TRUE, as this is activity one
 full$activity_ID <- cumsum(full$activity_conter == TRUE)  # create acitiviy_ID based on counter
+
+# Overwrite timelag to prevent from huge timelags between different activities:
+full <- full %>%
+  group_by(activity_ID) %>%
+  mutate(timelag = as.integer(difftime(timestamp, lag(timestamp))))
 
 ```
 
@@ -118,7 +124,7 @@ Define threshold: choose a threshold between stops and moves --> depending on da
 ```{r}
 #a) check data: histogram for speed for different tracks 
 
-speed_mean <- mean(full$enhaced_speed)
+speed_mean <- mean(full$enhanced_speed)
 
 full<- full %>% 
   ggplot()+
