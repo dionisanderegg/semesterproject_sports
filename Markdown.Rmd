@@ -122,9 +122,6 @@ full <- full %>%
   dplyr::group_by(activity_ID) %>%
   mutate(timelag = as.integer(difftime(timestamp, lag(timestamp))))
 summary(full$timelag)
-
-# Group_by(acitvityID) => TImelag (andd)
-
 ```
 
 ###1.3.2 calculate Euclidean distance
@@ -560,13 +557,13 @@ full_short %>%
 ```{r}
 
 #### Use values from full_short! (andd)
-zf <- full_sf %>% #zf because of "Zusammenfassung" in german
+zf <- full_sf_filtered %>% #zf because of "Zusammenfassung" in german
   st_drop_geometry() %>%
   group_by(activity_ID) %>%
   summarise(
     date = date(timestamp[1]),
     distance = max(distance, na.rm = TRUE),
-    time = as.numeric(difftime(max(timestamp), min(timestamp), units = "mins")),
+    time = sum(timelag, na.rm = TRUE)/60,
     hightdiff_up = sum(hightdiff_up, na.rm = TRUE),
     hightdiff_down = sum(hightdiff_down, na.rm = TRUE),
     mean_pace = time / distance * 1000
@@ -729,24 +726,21 @@ full_sf_min <- full_sf_filtered %>%
   summarise(
     distance = sum(steplength, na.rm = TRUE),
     hightdiff_up = sum(hightdiff_up, na.rm = TRUE),
-    hightdiff_down = sum(hightdiff_down, na.rm = TRUE),
+    hightdiff_down = sum(-hightdiff_down, na.rm = TRUE),
     hightdiff_balance = hightdiff_up + hightdiff_down,
-    time_eff = sum(timelag, na.rm = TRUE),
-    mean_pace = time_eff / distance * 1000 / 60
+    time_run = sum(timelag, na.rm = TRUE),
+    mean_pace = time_run / distance * 1000 / 60
   ) %>%
   mutate(vertical_direction = ifelse(hightdiff_balance > 2, "up",
                                       ifelse(hightdiff_balance < -2, "down",
                                              "horizontal")))
-
-full_sf_min <- full_sf_min %>%
-  filter(time_eff < 100, time_eff > 0, mean_pace < 25)
 ```
 
 Multimodel Inference for min.model
 
 ```{r}
 #### ZF: Use moving time (andd)! Sort graphics according to time measured!
-min.model <- lm(time_eff/60 ~ 0 + distance + hightdiff_up + hightdiff_down, data=full_sf_min)
+min.model <- lm(time_run/60 ~ 0 + distance + hightdiff_up + hightdiff_down, data=full_sf_min)
 options(na.action="na.fail")
 allmodels.min <- dredge(min.model)
 allmodels.min   # model[1] makes more sence than zf.model!
@@ -766,7 +760,7 @@ down_param_min <- allmodels.min$hightdiff_down[1]
 zf$time_estimated_min <- zf$distance *distance_param_min + zf$hightdiff_up * up_param_min + zf$hightdiff_down * down_param_min
 
 zf %>% 
-  dplyr::select(activity_ID, time_measured = time, time_estimated, time_estimated_min, distance, hightdiff_up, hightdiff_down) %>%
+  dplyr::select(activity_ID, time_measured = time, time_estimated_min, distance, hightdiff_up, hightdiff_down) %>%
   gather(type, value, time_measured, time_estimated_min) %>%
   ggplot(aes(activity_ID, value, col = type)) +
   geom_point() +
@@ -774,8 +768,16 @@ zf %>%
   theme_bw() +
   labs(x = "\nAktivitäts-ID", y = "Zeitbedarf in min\n")
 
+zf %>%
+  ggplot(aes(time, time_estimated_min)) +
+  geom_abline(intercept = 0, slope = 1) +
+  geom_label(aes(label = activity_ID, vjust = 1)) +
+  xlim(0, 200) +
+  ylim(0,200) +
+  geom_point()
+
 zf %>% 
-  select(activity_ID, time_measured = time, time_estimated_min, distance, hightdiff_up, hightdiff_down) %>%
+  dplyr::select(activity_ID, time_measured = time, time_estimated_min, distance, hightdiff_up, hightdiff_down) %>%
   gather(type, value, time_measured, time_estimated_min) %>%
   ggplot(aes(distance, value, col = type)) +
   geom_point() +
