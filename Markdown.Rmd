@@ -161,10 +161,11 @@ ggplotly(compare_distance)
 ```{r}
 # speed from tracker in km/h
 full$enhanced_speed_kmh <- full$enhanced_speed *3.6
+full_sf$enhanced_speed_kmh <- full$enhanced_speed *3.6
 
 # smooth speed and heart rate by rollmenans
 
-full <- full %>%
+full_sf <- full_sf %>%
   group_by(activity_ID, athlete) %>%
   mutate(
     enhanced_speed_00 = enhanced_speed_kmh,
@@ -306,7 +307,7 @@ full_sf %>%
   geom_text(x=9.92, y=-30, label="mean", color="blue")
 
 
-##all points which are < than the threshold value of 3m/s of enhanced_speed_5 are defined as static (moving)
+##all points which are < than the threshold value of 3m/s of enhanced_speed_kmh are defined as static (moving)
 
 tracks <- full_sf %>% 
   ungroup() %>%
@@ -514,18 +515,21 @@ The trend visually shows a decrease in speed and an increase in heart rate with 
 full_short <- tracks %>% 
   group_by(activity_ID) %>% 
   mutate(duration_whole_track = as.numeric(difftime(max(timestamp), min(timestamp), units = "hours"))) %>% #in hours
+  ungroup() %>% 
   group_by(activity_ID, static) %>% 
   filter(static == FALSE) %>% 
     mutate(duration_moving = as.numeric(difftime(max(timestamp), min(timestamp), units = "hours"))) %>% 
   ungroup() %>% 
-  mutate(duration_breaks = duration_whole_track- duration_moving) 
+  mutate(duration_breaks = (duration_whole_track - duration_moving), 
+         duration_breaks_min = (duration_breaks*60))
 
 
 full_short <- full_short %>% 
   group_by(activity_ID) %>% 
   summarize(duration_track = mean(duration_whole_track), 
             duration_moving = mean(duration_moving), 
-            duration_breaks = mean(duration_breaks)) %>%
+            duration_breaks = mean(duration_breaks), 
+            duration_breaks_min= mean(duration_breaks_min)) %>%
   ungroup() 
 
   ggplot(full_short)+
@@ -684,10 +688,12 @@ ggplotly(athlete01)
 #Breaks in relation to the runtime
 
 ggplot(full_short, aes(x=duration_breaks, y=duration_moving)) + 
-  geom_point() + 
-  scale_y_continuous(limits=c(0, 2.0)) +
+  geom_point() +
+  geom_text(aes(label=activity_ID),hjust=0, vjust=0)+
   geom_smooth(method="lm", fill='lightblue', size=0.5, alpha=0.5) +
-  theme(axis.text=element_text(size=12), axis.title=element_text(size=14,face="bold")) 
+  theme(axis.text=element_text(size=12), axis.title=element_text(size=14,face="bold"))+
+  labs(x = "\nduration of breaks [h]", y = "duration of moving [h]\n")
+  
 
 
 #plot tracks with pausing/moving on maps

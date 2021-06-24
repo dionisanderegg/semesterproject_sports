@@ -307,7 +307,6 @@ shinyApp(ui,server)
 
 ```
 
-
 --- output: html_document runtime: shiny ---
 
 How altitude differences "up" affect speeds:
@@ -323,6 +322,8 @@ In order to produce a model in chapter 3.5, some framework conditions must first
 To identify possible outliers,
 
 The statistical analysis showed that track 1, 9, 14 should be removed and that the running time for the prediction model should not be longer than 3h (system boundary).
+
+![](plots_figures/breaks_movingtime.jpg)
 
 #### 3.4.2 Heart pulse <a name="subparagraph1"></a>
 
