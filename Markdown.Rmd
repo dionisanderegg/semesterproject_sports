@@ -22,6 +22,7 @@ library(lubridate)
 library(zoo)
 library(purrr)
 library(base)
+library(ggpubr)
 
 if(!requireNamespace("remotes")) {
     install.packages("remotes")
@@ -110,124 +111,7 @@ full$activity_ID <- cumsum(full$activity_conter == TRUE)  # create acitiviy_ID b
 
 ```
 
-
-### 1.3.2 calculate speed / add rollmean function
-```{r}
-# speed from tracker in km/h
-full$enhanced_speed_kmh <- full$enhanced_speed *3.6
-
-# smooth speed and heart rate by rollmenans
-
-full <- full %>%
-  group_by(activity_ID, athlete) %>%
-  mutate(
-    enhanced_speed_00 = enhanced_speed_kmh,
-    enhanced_speed_02 = rollmean(enhanced_speed_kmh, k = 10, fill = NA, allign = "left"),
-    enhanced_speed_05 = rollmean(enhanced_speed_kmh, k = 10, fill = NA, allign = "left"),
-    enhanced_speed_10 = rollmean(enhanced_speed_kmh, k = 10, fill = NA, allign = "left"),
-    enhanced_speed_30 = rollmean(enhanced_speed_kmh, k = 30, fill = NA, allign = "left"),
-    enhanced_speed_60 = rollmean(enhanced_speed_kmh, k = 60, fill = NA, allign = "left")
-  )
-
-full <- full %>%
-  group_by(activity_ID) %>%
-  mutate(Track_Distance = max(distance)) %>%
-  ungroup()
-
-full %>%
-  gather(window, speed, enhanced_speed_00 : enhanced_speed_60) %>%
-  ggplot(aes(window, speed)) +
-  geom_violin() +
-  facet_wrap(~as.Date(timestamp))+
-  theme_bw() +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
-  labs(x = "\nsize of the moving window", y = "speed in km/h\n")
-
-full %>%
-  filter(Track_Distance > 10000) %>%
-  gather(window, speed, enhanced_speed_00 : enhanced_speed_60) %>%
-  ggplot(aes(window, speed)) +
-  geom_violin() +
-  facet_wrap(~as.Date(timestamp))+
-  theme_bw() +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
-  labs(x = "\nsize of the moving window", y = "speed in km/h\n")
-
-full %>%
-  filter(Track_Distance < 10000) %>%
-  gather(window, speed, enhanced_speed_00 : enhanced_speed_60) %>%
-  ggplot(aes(window, speed)) +
-  geom_violin() +
-  facet_wrap(~as.Date(timestamp))+
-  theme_bw() +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
-  labs(x = "\nsize of the moving window", y = "speed in km/h\n")
-
-
-full_smoothed_speed <- full %>%
-  dplyr::select(athlete, activity_ID, enhanced_speed_kmh : enhanced_speed_60) %>%
-  gather(window, speed, enhanced_speed_00 : enhanced_speed_60) %>%
-  group_by(window, activity_ID) %>%
-  summarise(mean = mean(speed, na.rm = TRUE),
-            sd = sd(speed, na.rm = TRUE),
-            var = var(speed, na.rm = TRUE))
-full_smoothed_speed
-
-ggplot(full_smoothed_speed, aes(window, mean)) +
-  geom_point() +
-  geom_errorbar(aes(ymin = mean -var, ymax = mean+ var)) +
-  facet_wrap(~activity_ID) +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1))+
-  labs(x = "\n size of the moving window", y = "mean speed and variance per track\n")
-
-#generate one random track in order to check
-random_track <-sample(full$activity_ID, 1)
-
-# How "k-value" affects the variety in speed:
-full %>%
-  filter(activity_ID == random_track) %>%
-  gather(smoother, speed, 
-         enhanced_speed_kmh, enhanced_speed_kmh, enhanced_speed_02 : enhanced_speed_60) %>%
-  ggplot(aes(timestamp, speed, col = smoother)) +
-  geom_line() +
-  theme_bw()
-ggplotly()
-
-
-#calculate speed 
-
-full_sf <- full_sf %>%
-  group_by(activity_ID) %>%
-  mutate(speed_calculated = steplength/timelag, 
-         speed_calculated_kmh = 3.6*(steplength/timelag)
-  )
-
-#compare calculated speed with speed from sport watch (speed_enhanced)
-
-
-
-compare_speed <- full_sf %>%
-  filter(activity_ID == random_tracks) %>%
-  ggplot() +
-  geom_point(aes(timestamp, enhanced_speed_kmh, col = "measurement")) +
-  #geom_point(aes(timestamp, speed_calculated_kmh, col = "calculated speed")) + #das kann nicht sein
-  geom_point(aes(timestamp, enhanced_speed_05, col = "rolling_window, k=5")) +
-  geom_point(aes(timestamp, enhanced_speed_10, col = "rolling_window, k=10")) +
-  
-  theme_bw() +
-  theme(legend.position = "bottom") +
-  facet_wrap(~activity_ID, scales = "free") +
-  labs(x = "\n time", y = "speed in km per h\n")
-
-compare_speed
-
-ggplotly(compare_speed)
-
-
-
-```
-
-###1.3.3 calculate Euclidean distance
+###1.3.2 calculate Euclidean distance
 
 ```{r}
 
@@ -271,6 +155,123 @@ compare_distance <- full_sf %>%
 
 compare_distance
 ggplotly(compare_distance)
+```
+
+### 1.3.3 calculate speed / add rollmean function
+```{r}
+# speed from tracker in km/h
+full$enhanced_speed_kmh <- full$enhanced_speed *3.6
+
+# smooth speed and heart rate by rollmenans
+
+full <- full %>%
+  group_by(activity_ID, athlete) %>%
+  mutate(
+    enhanced_speed_00 = enhanced_speed_kmh,
+    enhanced_speed_02 = rollmean(enhanced_speed_kmh, k = 10, fill = NA, allign = "left"),
+    enhanced_speed_05 = rollmean(enhanced_speed_kmh, k = 10, fill = NA, allign = "left"),
+    enhanced_speed_10 = rollmean(enhanced_speed_kmh, k = 10, fill = NA, allign = "left"),
+    enhanced_speed_30 = rollmean(enhanced_speed_kmh, k = 30, fill = NA, allign = "left"),
+    enhanced_speed_60 = rollmean(enhanced_speed_kmh, k = 60, fill = NA, allign = "left")
+  )
+
+full <- full %>%
+  group_by(activity_ID) %>%
+  mutate(Track_Distance = max(distance)) %>%
+  ungroup()
+
+full %>%
+  gather(window, speed, enhanced_speed_00 : enhanced_speed_60) %>%
+  ggplot(aes(window, speed)) +
+  geom_violin() +
+  facet_wrap(~as.Date(timestamp))+
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  labs(x = "\nsize of the moving window", y = "speed in km/h\n")
+
+#check moving windows for track distances > 10km
+full %>%
+  filter(Track_Distance > 10000) %>%
+  gather(window, speed, enhanced_speed_00 : enhanced_speed_60) %>%
+  ggplot(aes(window, speed)) +
+  geom_violin() +
+  facet_wrap(~as.Date(timestamp))+
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  labs(x = "\nsize of the moving window", y = "speed in km/h\n")
+
+#check moving windows for track distances < 10km
+full %>%
+  filter(Track_Distance < 10000) %>%
+  gather(window, speed, enhanced_speed_00 : enhanced_speed_60) %>%
+  ggplot(aes(window, speed)) +
+  geom_violin() +
+  facet_wrap(~as.Date(timestamp))+
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  labs(x = "\nsize of the moving window", y = "speed in km/h\n")
+
+#create table with overview of mean, sd, var for different tracks and different moving windows
+full_smoothed_speed <- full %>%
+  dplyr::select(athlete, activity_ID, enhanced_speed_kmh : enhanced_speed_60) %>%
+  gather(window, speed, enhanced_speed_00 : enhanced_speed_60) %>%
+  group_by(window, activity_ID) %>%
+  summarise(mean = mean(speed, na.rm = TRUE),
+            sd = sd(speed, na.rm = TRUE),
+            var = var(speed, na.rm = TRUE))
+full_smoothed_speed
+
+#plot mean speedn and variance per track
+ggplot(full_smoothed_speed, aes(window, mean)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean -var, ymax = mean+ var)) +
+  facet_wrap(~activity_ID) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))+
+  labs(x = "\n size of the moving window", y = "mean speed and variance per track\n")
+
+#generate one random track in order to check (for athlete 1)
+random_track <-sample(full$activity_ID, 1)
+
+# How "k-value" affects the variety in speed:
+full %>%
+  filter(activity_ID == random_track) %>%
+  gather(smoother, speed, 
+         enhanced_speed_kmh, enhanced_speed_kmh, enhanced_speed_02 : enhanced_speed_60) %>%
+  ggplot(aes(timestamp, speed, col = smoother)) +
+  geom_line() +
+  theme_bw()
+ggplotly()
+
+
+#calculate further speed via steplength/ timelag
+
+full_sf <- full_sf %>%
+  group_by(activity_ID) %>%
+  mutate(speed_calculated = steplength/timelag, 
+         speed_calculated_kmh = 3.6*(steplength/timelag)
+  )
+
+#compare calculated speed with speed from sport watch (speed_enhanced)
+
+compare_speed <- full_sf %>%
+  filter(activity_ID == random_tracks) %>%
+  ggplot() +
+  geom_point(aes(timestamp, enhanced_speed_kmh, col = "measurement")) +
+  #geom_point(aes(timestamp, speed_calculated_kmh, col = "calculated speed")) + #das kann nicht sein
+  geom_point(aes(timestamp, enhanced_speed_05, col = "rolling_window, k=5")) +
+  geom_point(aes(timestamp, enhanced_speed_10, col = "rolling_window, k=10")) +
+  
+  theme_bw() +
+  theme(legend.position = "bottom") +
+  facet_wrap(~activity_ID, scales = "free") +
+  labs(x = "\n time", y = "speed in km per h\n")
+
+compare_speed
+
+ggplotly(compare_speed)
+
+
+
 ```
 
 
@@ -414,13 +415,13 @@ full_sf_join %>%
 ```{r}
 
 # How altitude differences up affect speeds
-full_sf %>%
+diff_up <- full_sf %>%
   filter(activity_ID == 2) %>%
-  ggplot(aes(timestamp, enhanced_speed_15)) +
+  ggplot(aes(timestamp, enhanced_speed_05)) +
   geom_line()+
   geom_line(aes(y = rollmean(hightdiff_up, k = 15, fill = NA, allign = "left")*10), col = "green3") +
   scale_y_continuous(
-    "speed\n", 
+    "speed (green)\n", 
     sec.axis = sec_axis(~ . * 0.1, name = "hight difference\n")
   )+
   theme_bw()
@@ -428,17 +429,23 @@ full_sf %>%
 ggplotly()
 
 # How altitude differences down affect speeds
-full_sf %>%
+diff_down <- full_sf %>%
   filter(activity_ID == 2) %>%
-  ggplot(aes(timestamp, enhanced_speed_15)) +
+  ggplot(aes(timestamp, enhanced_speed_05)) +
   geom_line()+
   geom_line(aes(y = rollmean(-hightdiff_down, k = 15, fill = NA, allign = "left")*10), col = "green4") +
   scale_y_continuous(
-    "speed\n", 
+    "speed (green)\n", 
     sec.axis = sec_axis(~ . * 0.1, name = "hight difference\n")
   ) +
   theme_bw()
 ggplotly()
+
+figure_speed <- ggarrange(diff_down, diff_up,
+                    labels = c("A", "B"),
+                    ncol = 2, nrow = 1)
+figure_speed
+
 
 ```
 
@@ -562,9 +569,9 @@ full_short %>%
 
 ```
 
-## 2.3  overview per track
+## 2.3  overview per track /summary
 ```{r}
-zf <- full_sf %>% #zf because of Zusammenfassung in german
+zf <- full_sf %>% #zf because of "Zusammenfassung" in german
   st_drop_geometry() %>%
   group_by(activity_ID) %>%
   summarise(
@@ -673,6 +680,14 @@ athlete01 <-tracks%>%
   ggtitle("Athlete_01")
 
 ggplotly(athlete01)
+
+#Breaks in relation to the runtime
+
+ggplot(full_short, aes(x=duration_breaks, y=duration_moving)) + 
+  geom_point() + 
+  scale_y_continuous(limits=c(0, 2.0)) +
+  geom_smooth(method="lm", fill='lightblue', size=0.5, alpha=0.5) +
+  theme(axis.text=element_text(size=12), axis.title=element_text(size=14,face="bold")) 
 
 
 #plot tracks with pausing/moving on maps
