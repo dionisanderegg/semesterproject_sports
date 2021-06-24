@@ -90,6 +90,13 @@ full <- bind_rows(a1, a2, a3)
 
 keep(full, sure = TRUE)
 
+
+# Filter the whole data according to athlete to be analysed: Pick an athlete!
+Pick_Athlete <- 1
+
+full <- full %>%
+  filter(athlete == Pick_Athlete)
+
 ############# Filter here! User defines which athlete is considered (andd)
 
 #check full
@@ -110,6 +117,11 @@ full$timelag <- as.integer(difftime(full$timestamp, lag(full$timestamp)))
 full$activity_conter <- ifelse(abs(full$timelag) > 3600, TRUE, FALSE) 
 full$activity_conter[1] <- TRUE  # ID 1 = TRUE, as this is activity one
 full$activity_ID <- cumsum(full$activity_conter == TRUE)  # create acitiviy_ID based on counter
+
+full <- full %>%
+  dplyr::group_by(activity_ID) %>%
+  mutate(timelag = as.integer(difftime(timestamp, lag(timestamp))))
+summary(full$timelag)
 
 # Group_by(acitvityID) => TImelag (andd)
 
@@ -212,15 +224,16 @@ full_sf %>%
   labs(x = "\ntimestamp hh:mm", y = "altitude measurement m a.s.l.\n")+
   theme(legend.position = "bottom")
 
-full_sf %>%
-  filter(activity_ID < 10) %>%
+p.hightdiff <- full_sf %>%
   ggplot(aes(timestamp, altitude_diff)) +
   geom_line() +
   facet_wrap(~activity_ID, scales = "free") +
   theme_bw() +
-  labs(x = "\ntimestamp hh:mm", y = "altitude difference (DEM - Tracker) in m\n")
+  labs(x = "\ntimestamp hh:mm", y = "altitude difference (DEM - pressure measurement) in m\n")
+p.hightdiff <- ggplotly(p.hightdiff)
+p.hightdiff
 
-#### Use DEM instead of pressure measurement 
+htmlwidgets::saveWidget(as.widget(p.hightdiff), "plots_figures/p.hightdifference.html")
 ```
 
 ```{r}
@@ -230,7 +243,7 @@ full_sf <- full_sf %>%
   mutate(
     steplength = sqrt((x - lead(x))^2 + (y - lead(y))^2),
     steplenght_sum = cumsum(replace_na(steplength,0)),
-    hightdiff = lead(layer) - layer,
+    hightdiff = lead(layer) - layer, # laver is the elevation from the DEM!
     hightdiff_up = ifelse(hightdiff > 0, hightdiff, 0),
     hightdiff_down = ifelse(hightdiff < 0, hightdiff, 0)
   )

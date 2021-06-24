@@ -14,6 +14,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 In this semester project, sports tracks are analysed using GPS data from a Garmin device to identify specific behaviour patterns in outdoor sports (jogging, hiking, biking). Furthermore, the time required for sporting activities is modeled based on the individual fitness level, so that a user-specific forecast of the time required for sporting activities is possible. Model inputs are distance, altitude differences and the type of sport.
 
+
 # Table of contents
 
 1.  [Introduction](#introduction)
