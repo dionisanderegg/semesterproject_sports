@@ -694,7 +694,7 @@ ggplot(full_short, aes(x=duration_breaks, y=duration_moving)) +
   theme(axis.text=element_text(size=12), axis.title=element_text(size=14,face="bold"))+
   labs(x = "\nduration of breaks [h]", y = "duration of moving [h]\n")
   
-
+#unrealistic pausing hours!!?? 
 
 #plot tracks with pausing/moving on maps
 
