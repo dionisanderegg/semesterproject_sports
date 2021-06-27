@@ -1,7 +1,7 @@
 ---
-title: "Markdown"
+title: "Semester Project - Modelling individual time requirement for sport activities"
 author: "Alissa Tophinke, Dionis Anderegg"
-date: "27 Mai 2021"
+date: "04 July 2021"
 output: html_document
 ---
 
@@ -36,6 +36,8 @@ library(plotly)
 #Packages for DEM import and handling
 library(raster)
 library(tiff)
+
+library(MuMIn)
 
 ```
 
@@ -456,7 +458,7 @@ plot_speed_altitude_heartrate_function <- function(track_ID){
 }
 
 #count number of tracks (unique activity ID)
-number_of_tracks <- length(unique(full_sf_join$activity_ID))
+number_of_tracks <- length(unique(full_sf$activity_ID))
 number_of_tracks
 
 all_plots_speed_altitude_heartrate <- list() #create empty array
@@ -515,7 +517,7 @@ full_short <- full_sf_filtered %>%
     theme_bw()+
     ylim(0,3)+
     labs(title="moving duration of the tracks",
-        x ="tracks", y = "time in hours")
+        x ="activity ID", y = "time in hours")
   
    
 min(full_short$duration_moving)
@@ -539,7 +541,7 @@ full_short %>%
   mutate(outlier = ifelse(is_outlier(duration_moving), activity_ID, as.numeric(NA))) %>%
   ggplot(aes(x = activity_ID, y = duration_moving)) +
     geom_boxplot() +
-    geom_text(aes(x = 9.5, label = outlier), na.rm = TRUE, hjust = -0.2)+
+    geom_text(aes(x = 10.25, label = outlier), na.rm = TRUE, hjust = -0.2)+
   theme_bw()+
     labs(title="moving duration of the tracks",
         x ="", y = "time in hours\n") +
@@ -584,13 +586,12 @@ ggplot:
 #### Tidy this chapter (andd)
 # Visualisierung mit ggplot ohne Karte
 library(tidyverse)
-ggplot(filter(full_sf, enhanced_speed_kmh > 4), aes (position_lat, position_long, col = enhanced_speed_kmh)) +
+ggplot(full_sf, aes (x, y, col = enhanced_speed_kmh)) +
   geom_point() +
   facet_wrap(~activity_ID, scales = "free") +
   theme_bw()
 ```
 
-Bei einigen Tracks scheint es noch ein Problem mit den Daten zu geben. = Siehe obiger Plot.
 
 ###2.4.2 visualization with leaflet
 
@@ -601,6 +602,7 @@ library(leaflet)
 
 # Track 1
 m1 <- full %>%
+  ungroup() %>%
   filter(activity_ID ==random_track) %>%
   dplyr::select(position_long, position_lat) %>% 
   as.matrix() %>%
@@ -615,18 +617,19 @@ ggmap() => Da die Karten importiert werden müssen nur für 3 Tracks gezeigt:
 ```{r, message = FALSE}
 # Visualiserung mit ggmap
 track1_3 <- full %>%
-  filter(activity_ID < 4)
+  filter(activity_ID == 1 | activity_ID == 3) %>%
+  mutate(speed = enhanced_speed *3.6)
 
 library(ggmap)
 
 myLocation <- c(min(track1_3$position_long), min(track1_3$position_lat), 
                 max(track1_3$position_long), max(track1_3$position_lat))  # Position definieren für Karten
 
-myMap <- get_stamenmap(bbox=myLocation, maptype="terrain", crop=TRUE, zoom = 13)  # Kartenimport
+myMap <- get_stamenmap(bbox=myLocation, maptype="terrain", crop=TRUE, zoom = 14)  # Kartenimport
 
 ggmap(myMap) +
-  geom_point(data = filter(track1_3, enhanced_speed_kmh > 3), 
-             aes(position_long,position_lat, col = enhanced_speed_kmh)) +
+  geom_point(data = filter(track1_3), 
+             aes(position_long,position_lat, col = speed)) +
   facet_wrap(~activity_ID) +
   labs(x = "\nLängengrad [°E]", y = "Breitengrad [°N]\n")
 ```
@@ -717,14 +720,16 @@ ggplotly (tracks_heart%>%
 
 ## 6.1 Establishment of a suitable model
 
-Model basis => Segmeentation of all Tracks 
+Model basis => Segmeentation of all Tracks by cuts of 1 minute
 ```{r}
-#### Use full sf filtered to ensure calculation of running time
 full_sf_min <- full_sf_filtered %>%
   st_drop_geometry() %>%
+  group_by(activity_ID) %>%
+  mutate(Track_Distance = max(distance)) %>%
   group_by("time" = cut(timestamp, "1 min")) %>%
   summarise(
     distance = sum(steplength, na.rm = TRUE),
+    Track_Distance = Track_Distance[1],
     hightdiff_up = sum(hightdiff_up, na.rm = TRUE),
     hightdiff_down = sum(-hightdiff_down, na.rm = TRUE),
     hightdiff_balance = hightdiff_up + hightdiff_down,
@@ -736,86 +741,149 @@ full_sf_min <- full_sf_filtered %>%
                                              "horizontal")))
 ```
 
-Multimodel Inference for min.model
+Multimodel Inference:
 
 ```{r}
-#### ZF: Use moving time (andd)! Sort graphics according to time measured!
+# Create a linear Model to calculate time by dist, hightdiff:
 min.model <- lm(time_run/60 ~ 0 + distance + hightdiff_up + hightdiff_down, data=full_sf_min)
 options(na.action="na.fail")
-allmodels.min <- dredge(min.model)
-allmodels.min   # model[1] makes more sence than zf.model!
-# Interpretation: Per meter of Distance 0.00461 minutes, per meter up 0.035 minutes
-#  per meter down 0.01 minutes (negative because hightdiff_down is negative!).
+allmodels.min <- dredge(min.model)   # Create all possible models
+allmodels.min 
+# Lowest AICc Value for model 8 using all parameters
 
-importance(allmodels.min)
+importance(allmodels.min)   # All Parameters are important!
 
 avgmodel.min<-model.avg(get.models(dredge(min.model,rank="AICc"),subset=TRUE))
-summary(avgmodel.min) # All predictors are highli significant!
+summary(avgmodel.min) # All predictors are highly significant!
 
-# Komischerweise ist das "drittbeste Modell" einiges genauer als das beste Modell...
+# Extract coefficients from the best Model [1]
 distance_param_min <- allmodels.min$distance[1]
 up_param_min <- allmodels.min$hightdiff_up[1]
 down_param_min <- allmodels.min$hightdiff_down[1]
 
+# Estimate time requirement based on above created model parameters
 zf$time_estimated_min <- zf$distance *distance_param_min + zf$hightdiff_up * up_param_min + zf$hightdiff_down * down_param_min
 
+# Plot measured and estimated time: Model underestimates time requirement for long activities,
+#  and overestimates for short activities (see following plots)
 zf %>% 
-  dplyr::select(activity_ID, time_measured = time, time_estimated_min, distance, hightdiff_up, hightdiff_down) %>%
-  gather(type, value, time_measured, time_estimated_min) %>%
-  ggplot(aes(activity_ID, value, col = type)) +
+  dplyr::select(activity_ID, measured = time, estimated = time_estimated_min, distance, hightdiff_up, hightdiff_down) %>%
+  gather(type, value, measured, estimated) %>%
+  ggplot(aes(reorder(activity_ID, -distance), value, col = type)) +
   geom_point() +
-  geom_line() +
   theme_bw() +
-  labs(x = "\nAktivitäts-ID", y = "Zeitbedarf in min\n")
+  labs(x = "\nactivity-ID", y = "time requirement in minutes\n")
+
+# Exhaustion can be seen here
+zf %>% 
+  dplyr::select(activity_ID, measured = time, estimated = time_estimated_min, distance, hightdiff_up, hightdiff_down) %>%
+  mutate(deviation = estimated / measured -1) %>%
+  ggplot(aes(reorder(activity_ID, -distance), deviation, fill = deviation)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  geom_label(aes(label = paste(round(deviation,2)*100, "%", sep = "")), fill = "white")+
+  geom_xsidepoint(aes(y = distance)) +
+  theme_bw() +
+  labs(x = "\nactivity-ID", y = "relative under- and overestimation of time requirement // distance")
+
+# Adjust Model from above with exhaustion: Calculate the time difference between measurement and base
+#  model by the estimated time of the model
+zf$time_diff <- - zf$time_estimated_min + zf$time   # Time estimated - time measured
+adjust.model <- lm(time_diff ~ time_estimated_min, data = zf)
+summary(adjust.model)  # Intercept is significant, time estimation too. R2 = 0.61.
+
+# Create exhaustion coefficient and intercept
+exhausing_coeff <- as.numeric(adjust.model$coefficients[2])
+exhausting_interc <- as.numeric(adjust.model$coefficients[1])
+
+zf$time_estimated_full <- zf$distance *distance_param_min + zf$hightdiff_up * up_param_min + zf$hightdiff_down * down_param_min + zf$time_estimated_min * exhausing_coeff + exhausting_interc
+
+# Still some variation between measurement and estimation (exhaustion) but less systematically!
+zf %>% 
+  dplyr::select(activity_ID, measured = time, estimated = time_estimated_min,  estimated_exhaustion= time_estimated_full, distance, hightdiff_up, hightdiff_down) %>%
+  gather(type, value, measured, estimated_exhaustion, estimated) %>%
+  ggplot(aes(as.factor(reorder(activity_ID, -distance)), value, fill = type)) +
+  geom_bar(stat = "identity", position = "dodge", width = 0.7)+
+  theme_bw() +
+  labs(x = "\nactivity-ID", y = "time requirement in minutes\n")
+
+zf %>% 
+  dplyr::select(activity_ID, measured = time, estimated = time_estimated_full, distance, hightdiff_up, hightdiff_down) %>%
+  mutate(deviation = estimated / measured -1) %>%
+  ggplot(aes(reorder(activity_ID, -distance), deviation, fill = deviation)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  geom_label(aes(label = paste(round(deviation,2)*100, "%", sep = "")), fill = "white")+
+  geom_xsidepoint(aes(y = distance)) +
+  theme_bw() +
+  labs(x = "\nactivity-ID", y = "relative under- and overestimation of time requirement // distance")
+
 
 zf %>%
-  ggplot(aes(time, time_estimated_min)) +
-  geom_abline(intercept = 0, slope = 1) +
-  geom_label(aes(label = activity_ID, vjust = 1)) +
-  xlim(0, 200) +
-  ylim(0,200) +
-  geom_point()
+  dplyr::select(time, simple = time_estimated_min, exhaustion = time_estimated_full) %>%
+  gather(model, value, simple, exhaustion) %>%
+  ggplot(aes(time, value, col = model)) +
+  geom_abline(intercept = 0, slope = 1, col = "red") +
+  xlim(0,175) +
+  ylim(0,175) +
+  geom_point()+
+  theme_bw() +
+  labs(x = "time measured", y = "time estimated")
 
+# There ist still deviation but less systematical!
+zf %>%
+  dplyr::select(time, simple = time_estimated_min, exhaustion = time_estimated_full) %>%
+  gather(model, value, simple, exhaustion) %>%
+  ggplot(aes(time, value, col = model)) +
+  geom_abline(intercept = 0, slope = 1, col = "black") +
+  xlim(0,75) +
+  ylim(0,75) +
+  geom_point()+
+  theme_bw() +
+  labs(x = "time measured", y = "time estimated")
+  
+
+# Exhaustion Model represents measurement better than simple model without exhaustion.
 zf %>% 
-  dplyr::select(activity_ID, time_measured = time, time_estimated_min, distance, hightdiff_up, hightdiff_down) %>%
-  gather(type, value, time_measured, time_estimated_min) %>%
+  dplyr::select(activity_ID, measured = time, simple = time_estimated_min, exhaustion = time_estimated_full, distance, hightdiff_up, hightdiff_down) %>%
+  gather(type, value, measured, simple, exhaustion) %>%
   ggplot(aes(distance, value, col = type)) +
   geom_point() +
   geom_smooth(method = "lm") +
   theme_bw()
-# It seems that the model underestimates time requirement for long distances, and overestimates
-#  for short distances => Exhaution!
-
-# Show the pace-dependency of the hightdifference up
-full_sf_min %>%
-  filter(vertical_direction == "up") %>%
-  ggplot(aes(hightdiff_up, mean_pace)) +
-  geom_point() +
-  geom_smooth(span = 1) +
-  ylim(4.3,14.5) +
-  theme_bw() +
-  labs(x = "\nhightdifference up per minute of running time", y = "mean pace per minute of running time\n")
-
-full_sf_min %>%
-  filter(vertical_direction == "down") %>%
-  ggplot(aes(-hightdiff_down, mean_pace)) +
-  geom_point() +
-  geom_smooth(span = 1) +
-  ylim(4.4,11) +
-  xlim(0,38) +
-  theme_bw() +
-  labs(x = "\nhightdifference down per minute of running time", y = "mean pace per minute of running time\n")
-
-ggplot(full_sf_min, aes(mean_pace, hightdiff_down)) +
-  geom_point()
-
 ```
 
 ## 6.2 validation of the model 
 
 
 ```{r}
-valid_time <- 10000 * distance_param_min + 500 * up_param_min + 500 * down_param_min
+Running_Dist <- 13540     # Distance of a route
+Running_up <- 712         # Hightdifference up
+Running_down <- 488       # Hightdifference down
+
+valid_time_simple <- Running_Dist * distance_param_min + 
+  Running_up * up_param_min + 
+  Running_down * down_param_min 
+valid_time_simple         # Gives time estimate with simple model
+
+valid_time_exhaustion <- valid_time_simple + exhausting_interc + valid_time_simple * exhausing_coeff
+valid_time_exhaustion     # Gives time estimate with exhaustion model
+```
+
+```{r}
+# Show the time estimation of different distances and hightdifferences as a 3D plot
+timetable <- data.frame(
+  Distance_m = rep(seq(3000 , 32000,  500), each = 11),
+  hight_difference_m = rep(seq(0,1000, 100), 59)
+)
+
+timetable$simple_model_min <-timetable$Distance_m *distance_param_min + 
+  timetable$hight_difference_m * up_param_min + timetable$hight_difference_m * down_param_min
+timetable$exhaustion_model_min <- round(timetable$simple_model + exhausting_interc + 
+  exhausing_coeff * timetable$simple_model,0)
+
+timeplot <- plot_ly(timetable, x = ~Distance_m, y = ~hight_difference_m, z = ~exhaustion_model_min,
+                    color = ~exhaustion_model_min)
+timeplot
+
 
 
 ```
