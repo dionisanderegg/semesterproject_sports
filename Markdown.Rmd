@@ -99,7 +99,6 @@ Pick_Athlete <- 1
 full <- full %>%
   filter(athlete == Pick_Athlete)
 
-############# Filter here! User defines which athlete is considered (andd)
 
 #check full
 head(full)
@@ -241,7 +240,7 @@ full_sf <- full_sf %>%
   group_by(activity_ID) %>%
   mutate(
     steplength = sqrt((x - lead(x))^2 + (y - lead(y))^2),
-    steplenght_sum = cumsum(replace_na(steplength,0)),
+    steplength_sum = lag(cumsum(replace_na(steplength,0))),
     hightdiff = lead(layer) - layer, # laver is the elevation from the DEM!
     hightdiff_up = ifelse(hightdiff > 0, hightdiff, 0),
     hightdiff_down = ifelse(hightdiff < 0, hightdiff, 0)
@@ -252,16 +251,18 @@ full_sf <- full_sf %>%
 #generate random tracks to check
 random_tracks <-sample(full_sf$activity_ID, 6)
 
-#### Distance (absolute or in percent) instead of comparison (tophial)
+#### Distance (absolute or in percent) instead of comparison
+
+full_sf$distance_diff <- full_sf$steplength_sum - full_sf$distance
+
 
 compare_distance <- full_sf %>%
+  group_by(activity_ID) %>% 
   filter(activity_ID == random_tracks) %>%
-  ggplot() +
-  geom_point(aes(timestamp, distance, col = "measurement"), alpha = 0.1) +
-  geom_point(aes(timestamp, steplenght_sum, col = "euclidian distance"), alpha = 0.1) +
-  theme_bw() +
-  theme(legend.position = "bottom") +
+ ggplot(aes(timestamp, distance_diff)) +
+  geom_line() +
   facet_wrap(~activity_ID, scales = "free") +
+  theme_bw() +
   labs(x = "\n time", y = "distance in meters\n")
 
 compare_distance
@@ -384,13 +385,6 @@ full_sf <- full_sf %>%
 ```
 
 
-
-## 1.4 evaluate altitude with DEM => After creating full_sf!
-
-```{r}
-# copied to 1.3
-
-```
 
 # 2 RESEARCH QUESTION 1 -Explorative data analysis 
 
