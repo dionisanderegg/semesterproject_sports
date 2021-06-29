@@ -147,7 +147,7 @@ full_sf$y <- st_coordinates(full_sf$geometry)[,2]
 ##  digital elevation model to verify altitude for each GPS location
 #    we only import the necesary data now!
 
-# Create a Dataframe containing all position (floor-rounded to 1km) as information source for required DHM-rasters
+# Create a Dataframe containing all positions (floor-rounded to 1km) as information source for required DHM-rasters
 DHM_rasters <- data.frame(
   x = floor(full_sf$x / 1000),
   y = floor(full_sf$y / 1000)
