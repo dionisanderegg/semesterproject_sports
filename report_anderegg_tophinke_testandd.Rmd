@@ -236,7 +236,7 @@ for(i in 1:length(DHM_required$DHM_URL)){
 
 As shown in the plot below, only the DEM-rasters of the observation area have been imported. The points show all the x and y coordinates that have been tracked by the athlete.
 
-```{r echo=FALSE, fig.cap="Figure", message=FALSE, warning=FALSE}
+```{r echo=FALSE, fig.cap="Figure x: Digital elevation model (DEM) of the ovservation area with x and y coordinates of all analysed tracks", message=FALSE, warning=FALSE}
 # Create a Rasterlayer from raster-list
 m <- do.call(merge, r.list)
 
@@ -306,7 +306,7 @@ tophal
 
 Moreover, a rolling window function with different k-values was generated in order to smoothen the time step-values. With this, speed was also calculated, compared with the data from the sportwatch (enhanced_speed multiplied by 3.6 to get the unit km/h) and plotted. The plots of 6 randomly selected tracks show that there are hardly any deviations between distance (and speed) from the .fit file and the calculated distance / speed values. Therefore, the distances from the sports watch are used for further calculations.
 
-```{r message=TRUE, warning=TRUE, include=FALSE, paged.print=TRUE}
+```{r message=TRUE, warning=FALSE, include=FALSE, paged.print=TRUE}
 # speed from tracker in km/h
 full_sf$enhanced_speed_kmh <- full$enhanced_speed *3.6
 
@@ -354,7 +354,7 @@ full_sf %>%
 random_track <-sample(full$activity_ID, 1)
 ```
 
-```{r echo=FALSE, message=TRUE, warning=TRUE, paged.print=TRUE}
+```{r echo=FALSE, message=TRUE, warning=FALSE, paged.print=TRUE, fig.cap="Figure x: Frequency of speeds in km/h depending on rolling window size"}
 ######## Use this graph for report
 full_sf %>%
   gather(window, speed, enhanced_speed_00 : enhanced_speed_50) %>%
@@ -367,15 +367,15 @@ full_sf %>%
 
 ```
 
-```{r echo=FALSE, message=TRUE, warning=TRUE, paged.print=TRUE}
+```{r echo=FALSE, message=TRUE, warning=FALSE, paged.print=TRUE,fig.cap="Figure x: Speed in km/h of a random track depending on rolling window size"}
 
-full_sf %>%
+speeds_rW <- full_sf %>%
   filter(activity_ID == random_track) %>%
   gather(smoother, speed, enhanced_speed_00 : enhanced_speed_50) %>%
   ggplot(aes(timestamp, speed, col = smoother)) +
   geom_line() +
   theme_bw()
-ggplotly()
+ggplotly(speeds_rW)
 #### USe k = 3 for further analysis
 ```
 
@@ -479,11 +479,13 @@ Exhaustion Model: Due to exhaustion, the simple model leads to an overestimation
 
 ## 3 Results <a name="paragraph2"></a>
 
-### 3.1 Data preparation <a name="subparagraph1"></a>
+In the following subchapters...
 
-#### 3.1.2 Comparison tracked data vs. calculated data <a name="subparagraph1"></a>
+### 3.1 Accuracy of the data <a name="subparagraph1"></a>
 
-**A) Distance**
+The accuracy of the data is examined by a comparison of the distances (and speed) as well as the altitude.
+
+#### 3.1.1 Tracked distance vs. calculated distance <a name="subparagraph1"></a>
 
 tophal
 
@@ -493,13 +495,13 @@ The comparison between the recorded distances and those from Eucliedean Distance
 hist(full_sf$distance_diff)  # Use histogram and describe that maximal deviation is around 1 % +-
 ```
 
-**B) Altitude**
+#### 3.1.1 Tracked altitude vs. calculated altitude <a name="subparagraph1"></a>
 
 andd
 
 evaluate altitude with DEM
 
-```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
+```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
 # Test accuracy of elevation measurement
 full_sf %>%
   gather(source, value, enhanced_altitude, layer) %>%
@@ -518,19 +520,22 @@ p.hightdiff <- full_sf %>%
   theme_bw() +
   labs(x = "\ntimestamp hh:mm", y = "altitude difference (DEM - pressure measurement) in m\n")
 p.hightdiff <- ggplotly(p.hightdiff)
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE, fig.cap="Figure x: Hight difference between pressure measurement (clock) and DEM"}
 p.hightdiff
 
 ```
 
-### 3.3 Research Question 1 <a name="subparagraph1"></a>
+### 3.2 Research Question 1 <a name="subparagraph1"></a>
 
-#### 3.3.1 Visualization of the tracks on map
+#### 3.2.1 Visualization of the tracks on map
 
 andd
 
 ggplot:
 
-```{r, message=FALSE}
+```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
 #### Tidy this chapter (andd)
 # Visualisierung mit ggplot ohne Karte
 library(tidyverse)
@@ -542,14 +547,14 @@ ggplot(full_sf, aes (x, y, col = enhanced_speed_kmh)) +
 
 Leaflet ist interaktiv (m.E. sehr cool ;)) aber weniger einfach zu bearbeiten als ggplot oder ggmap (facets und einfärben von Datenpunkten etc.).
 
-```{r, message = FALSE}
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE, fig.cap="Figure x: Visualization of a track on a map using package leaflet"}
 # Visualiseriung mit leaflet() => Interaktiv, schwer zu bearbeiten
 library(leaflet)
 
 # Track 1
 m1 <- full %>%
   ungroup() %>%
-  filter(activity_ID ==random_track) %>%
+  filter(activity_ID ==1) %>%
   dplyr::select(position_long, position_lat) %>% 
   as.matrix() %>%
   leaflet(  ) %>%
@@ -560,7 +565,7 @@ m1
 
 ggmap(), Da die Karten importiert werden müssen nur für 3 Tracks gezeigt:
 
-```{r, message = FALSE}
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE, fig.cap="Figure x: Visualization of a track on a map using package ggmap"}
 # Visualiserung mit ggmap
 track1_3 <- full %>%
   filter(activity_ID == 1 | activity_ID == 3) %>%
@@ -580,7 +585,7 @@ ggmap(myMap) +
   labs(x = "\nLängengrad [°E]", y = "Breitengrad [°N]\n")
 ```
 
-#### 3.3.2 Shiny
+#### 3.2.2 Variables affecting the time requirement (shiny)
 
 tophal
 
@@ -588,7 +593,7 @@ To answer research question 1, an exploratory data analysis (EDA) of the collect
 
 The Shiny app was programmed to browse through the different tracks of an athlete. Via dropdown menu it is possible to choose between the different tracks:
 
-```{r}
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE, fig.cap="Figure x: How hight differences affect speed and heart rate. Different tracks can be selected using the interactive dropdown menu"}
 full_long <- gather(full_sf, type, value, layer, heart_rate, enhanced_speed_03)
 
 library(shiny)
@@ -614,7 +619,6 @@ plot_speed_altitude_heartrate_function <- function(track_ID){
 
 #count number of tracks (unique activity ID)
 number_of_tracks <- length(unique(full_sf$activity_ID))
-number_of_tracks
 
 all_plots_speed_altitude_heartrate <- list() #create empty array
 
@@ -635,9 +639,9 @@ server <- shinyServer(function(input,output){
 shinyApp(ui,server)
 ```
 
-#### 3.3.3 Summary of tracks
+#### 3.2.3 Summary of tracks
 
-```{r}
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
 #### Use values from full_short! (andd)
 zf <- full_sf_filtered %>% #zf because of "Zusammenfassung" in german
   st_drop_geometry() %>%
@@ -650,19 +654,20 @@ zf <- full_sf_filtered %>% #zf because of "Zusammenfassung" in german
     hightdiff_down = sum(hightdiff_down, na.rm = TRUE),
     mean_pace = time / distance * 1000
     )
+zf
 ```
 
-### 3.4 Research Question 2 <a name="subparagraph1"></a>
+### 3.3 Research Question 2 <a name="subparagraph1"></a>
 
 In this chapter the goal was to indicate specific behavioral patterns (e.g. speed, breaks, or similar) in the sports data and when they occur.
 
-#### 3.4.1 Moving/breaking <a name="subparagraph1"></a>
+#### 3.3.1 Moving/breaking <a name="subparagraph1"></a>
 
 In order to produce a model in chapter 3.5, some framework conditions must first be established. For this purpose, the length of the tracks, the actual running time and the breaks per track were identified.
 
 To identify possible outliers,
 
-```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE, fig.cap="Figure x: Identification of outliers"}
 full_short %>%
   mutate(outlier = ifelse(is_outlier(duration_moving), activity_ID, as.numeric(NA))) %>%
   ggplot(aes(x = activity_ID, y = duration_moving)) +
@@ -679,22 +684,21 @@ full_short %>%
 
 The statistical analysis showed that track 1, 9, 14 should be removed and that the running time for the prediction model should not be longer than 3h (system boundary).
 
-#### 3.4.2 Heart pulse <a name="subparagraph1"></a>
+#### 3.3.2 Heart rate patterns<a name="subparagraph1"></a>
 
 According to Such and Meyer (2010) the maximum heart rate (HRmax) is calculated as 220-age for running and 200-age for biking (rule of thumb). Also, women-specific calculations such as HFmax = 206 - (age x 0.88) (also rule of thumb) exist (Gulati et al). Since only data from male athletes exist in this work, it will not be used further. Therefore, it is important that the data used is up to date or at leas approximately the same as the current age.
 
-```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE, fig.cap="Figure x: Identification of running sequences with heart rates higher then recommended"}
 #max heart rate --literature athlete 1 
 #date of athlete 1
 birth_athelete1 <- as.Date('1991-11-16')
 now <- Sys.time()
 
 age_a1 <- time_length(difftime(now, birth_athelete1), "years")
-age_a1
 
 max_heart_rate_literature <- 220-age_a1
 high_rate <- (max_heart_rate_literature*0.86)
-
+paste("The indivudial is ", round(age_a1,0), " years old", " which leads to a maximum heart rate of ", round(max_heart_rate_literature,0), " BPM and a good training value for this indivudual would be around ", round(high_rate,0)," BPM", sep = "")
 
 tracks_heart <- full_sf %>% 
   group_by(activity_ID) %>% 
@@ -726,7 +730,7 @@ Therefore
 
 Model basis =\> Segmeentation of all Tracks by cuts of 1 minute
 
-```{r}
+```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
 full_sf_min <- full_sf_filtered %>%
   st_drop_geometry() %>%
   group_by(activity_ID) %>%
@@ -748,7 +752,7 @@ full_sf_min <- full_sf_filtered %>%
 
 Multimodel Inference:
 
-```{r}
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
 # Create a linear Model to calculate time by dist, hightdiff:
 min.model <- lm(time_run/60 ~ 0 + distance + hightdiff_up + hightdiff_down, data=full_sf_min)
 options(na.action="na.fail")
