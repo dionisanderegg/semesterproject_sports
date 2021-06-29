@@ -269,9 +269,9 @@ Moreover, a rolling window function with different k-values was generated in ord
 
 ### 2.3 Model individual time requirement <a name="subparagraph4"></a>
 
-To model the time requirement of an activity, distance and altitude differences (upwards and downwards) were used as predictors in a first step. Subsequently, the model was refined by including fatigue (based on distance). Die Ermüdung wurde einbezogen, weil ein erstes Modell zu einer systematischen Überschätzung des Zeitbedarfs bei kurzen Aktivitäten führte, wogegen der Zeitbedarf für längere Aktitäten unterschätzt wurde.
+To model the time requirement of an activity, distance and altitude differences (upwards and downwards) were used as predictors in a first step. Subsequently, the model was refined by including fatigue (based on the time estimation of the model). Fatigue was included because the first model led to a systematic overestimation of the time needed for short activities, whereas the time needed for longer activities was underestimated.
 
-Simple Model:Before starting with a Multimodel Inference (Multiple Regession), the activities were segmented in increments of one minute. Using multimodel inference, all predictors were checked for their importance. Subsequently, the model with the highest AICc value was selected to model the individual time requirement of athletes.
+Simple Model: Before starting with a Multimodel Inference (Multiple Regession), the activities were segmented in increments of one minute. Using multimodel inference, all predictors were checked for their importance. Subsequently, the model with the highest AICc value was selected to model the individual time requirement of athletes.
 
 Exhaustion Model: Due to exhaustion, the simple model leads to an overestimation of the time requirement for short activities and tends to underestimate it for longer activities. For this reason, the fatigue component is added to the model. For this purpose, the time difference between prediction and measurement of each track is used and calculated using a linear model based on the duration of the prediction. This results in a lower time requirement for short activities and a higher time requirement for longer activities. The slope of the linear model increases due to this correction, but by reducing the intercept, the time requirement decreases for short activities.
 
