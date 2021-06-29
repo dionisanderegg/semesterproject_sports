@@ -533,11 +533,10 @@ p.hightdiff
 
 andd
 
-ggplot:
+There are various packages in R that can be used to visualize location data. In the following, some selected tracks are shown by means of such visualizations. We have restricted ourselves to common packages such as leaflet() and ggmaps(). 
 
 ```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
-#### Tidy this chapter (andd)
-# Visualisierung mit ggplot ohne Karte
+# ggplot without map => not included in report
 library(tidyverse)
 ggplot(full_sf, aes (x, y, col = enhanced_speed_kmh)) +
   geom_point() +
@@ -548,10 +547,10 @@ ggplot(full_sf, aes (x, y, col = enhanced_speed_kmh)) +
 Leaflet ist interaktiv (m.E. sehr cool ;)) aber weniger einfach zu bearbeiten als ggplot oder ggmap (facets und einfärben von Datenpunkten etc.).
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE, fig.cap="Figure x: Visualization of a track on a map using package leaflet"}
-# Visualiseriung mit leaflet() => Interaktiv, schwer zu bearbeiten
+
 library(leaflet)
 
-# Track 1
+# Example track 1
 m1 <- full %>%
   ungroup() %>%
   filter(activity_ID ==1) %>%
@@ -563,12 +562,26 @@ m1 <- full %>%
 m1
 ```
 
-ggmap(), Da die Karten importiert werden müssen nur für 3 Tracks gezeigt:
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE, fig.cap="Figure x: Visualization of a track on a map using package leaflet"}
+
+# Example track 6
+m2 <- full %>%
+  ungroup() %>%
+  filter(activity_ID ==3) %>%
+  dplyr::select(position_long, position_lat) %>% 
+  as.matrix() %>%
+  leaflet(  ) %>%
+  addTiles() %>%
+  addPolylines( )
+m2
+```
+
+
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE, fig.cap="Figure x: Visualization of a track on a map using package ggmap"}
-# Visualiserung mit ggmap
+# Use ggmap for visualization
 track1_3 <- full %>%
-  filter(activity_ID == 1 | activity_ID == 3) %>%
+  filter(activity_ID == 1) %>%
   mutate(speed = enhanced_speed *3.6)
 
 library(ggmap)
@@ -576,10 +589,30 @@ library(ggmap)
 myLocation <- c(min(track1_3$position_long), min(track1_3$position_lat), 
                 max(track1_3$position_long), max(track1_3$position_lat))  # Position definieren für Karten
 
-myMap <- get_stamenmap(bbox=myLocation, maptype="terrain", crop=TRUE, zoom = 14)  # Kartenimport
+myMap <- get_stamenmap(bbox=myLocation, maptype="terrain", crop=TRUE, zoom = 13)  # Kartenimport
 
 ggmap(myMap) +
-  geom_point(data = filter(track1_3), 
+  geom_point(data = filter(track1_3, speed > 3.5), 
+             aes(position_long,position_lat, col = speed)) +
+  facet_wrap(~activity_ID) +
+  labs(x = "\nLängengrad [°E]", y = "Breitengrad [°N]\n")
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE, fig.cap="Figure x: Visualization of a track on a map using package ggmap"}
+
+track1_3 <- full %>%
+  filter(activity_ID == 3) %>%
+  mutate(speed = enhanced_speed *3.6)
+
+library(ggmap)
+
+myLocation <- c(min(track1_3$position_long), min(track1_3$position_lat), 
+                max(track1_3$position_long), max(track1_3$position_lat))  # Position definieren für Karten
+
+myMap <- get_stamenmap(bbox=myLocation, maptype="terrain", crop=TRUE, zoom = 13)  # Kartenimport
+
+ggmap(myMap) +
+  geom_point(data = filter(track1_3, speed > 3.5), 
              aes(position_long,position_lat, col = speed)) +
   facet_wrap(~activity_ID) +
   labs(x = "\nLängengrad [°E]", y = "Breitengrad [°N]\n")
