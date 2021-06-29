@@ -187,7 +187,7 @@ The URLs to the files consist of a fixed part and a part dependent on the locati
 
 ```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
 ##  digital elevation model to verify altitude for each GPS location
-#    we only import the necesary data now!
+#    we only import the necessary data now!
 
 # Create a Dataframe containing all positions (floor-rounded to 1km) as information source for required DHM-rasters
 DHM_rasters <- data.frame(
@@ -242,7 +242,7 @@ points(full_sf$x, full_sf$y)   # Add all points to the DEM-Graphic
 Finally, the height information from the DEM could be extracted for every single x- and y-coordinate of the tracks to be analysed. By joining the hight information from the DEM with the coordinates of the tracks the accuracy of the elevation measurement by the pressure was possible. Since the pressure measurement leads to constant fluctuations in the altitude information, the altitude information from the DEM is considered more reliable and is used for subsequent evaluations.
 
 ```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
-# Reading of other tracks all over switzerland will result in the import of the required rasters above!! :)
+# Reading of other tracks all over Switzerland will result in the import of the required rasters above!! :)
 
 # Extract elevation information from rasterlayer
 data.matrix <- as.data.frame(rasterToPoints(m))
@@ -266,6 +266,81 @@ full_sf$altitude_diff <- full_sf$layer - full_sf$enhanced_altitude
 ```
 
 Moreover, a rolling window function with different k-values was generated in order to smoothen the time step-values. With this, speed was also calculated, compared with the data from the sportwatch (enhanced_speed multiplied by 3.6 to get the unit km/h) and plotted. The plots of 6 randomly selected tracks show that there are hardly any deviations between distance (and speed) from the .fit file and the calculated distance / speed values. Therefore, the distances from the sports watch are used for further calculations.
+
+
+```{r}
+# speed from tracker in km/h
+full_sf$enhanced_speed_kmh <- full$enhanced_speed *3.6
+
+# smooth speed and heart rate by rollmenans
+
+full_sf <- full_sf %>%
+  group_by(activity_ID, athlete) %>%
+  mutate(
+    enhanced_speed_00 = enhanced_speed_kmh,
+    enhanced_speed_02 = rollmean(enhanced_speed_kmh, k = 2, fill = NA, allign = "left"),
+    enhanced_speed_03 = rollmean(enhanced_speed_kmh, k = 3, fill = NA, allign = "left"),
+    enhanced_speed_05 = rollmean(enhanced_speed_kmh, k = 5, fill = NA, allign = "left"),
+    enhanced_speed_10 = rollmean(enhanced_speed_kmh, k = 10, fill = NA, allign = "left"),
+    enhanced_speed_50 = rollmean(enhanced_speed_kmh, k = 50, fill = NA, allign = "left")
+  )
+
+full_sf <- full_sf %>%
+  group_by(activity_ID) %>%
+  mutate(Track_Distance = max(distance)) %>%
+  ungroup()
+
+######## Use this graph for report
+full_sf %>%
+  gather(window, speed, enhanced_speed_00 : enhanced_speed_50) %>%
+  ggplot(aes(window, speed)) +
+  geom_violin() +
+  facet_wrap(~as.Date(timestamp))+
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  labs(x = "\nsize of the moving window", y = "speed in km/h\n")
+
+#check moving windows for track distances > 10km
+full_sf %>%
+  filter(Track_Distance > 10000) %>%
+  gather(window, speed, enhanced_speed_00 : enhanced_speed_50) %>%
+  ggplot(aes(window, speed)) +
+  geom_violin() +
+  facet_wrap(~as.Date(timestamp))+
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  labs(x = "\nsize of the moving window", y = "speed in km/h\n")
+
+#check moving windows for track distances < 10km
+full_sf %>%
+  filter(Track_Distance < 10000) %>%
+  gather(window, speed, enhanced_speed_00 : enhanced_speed_50) %>%
+  ggplot(aes(window, speed)) +
+  geom_violin() +
+  facet_wrap(~as.Date(timestamp))+
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  labs(x = "\nsize of the moving window", y = "speed in km/h\n")
+
+#generate one random track in order to check (for athlete 1)
+random_track <-sample(full$activity_ID, 1)
+
+############## Use in Report!
+# How "k-value" affects the variety in speed:
+full_sf %>%
+  filter(activity_ID == random_track) %>%
+  gather(smoother, speed, enhanced_speed_00 : enhanced_speed_50) %>%
+  ggplot(aes(timestamp, speed, col = smoother)) +
+  geom_line() +
+  theme_bw()
+ggplotly()
+
+
+#### USe k = 3 for further analysis
+
+```
+
+
 
 ### 2.3 Model individual time requirement <a name="subparagraph4"></a>
 
