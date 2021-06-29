@@ -3,6 +3,7 @@ title: "Modelling the individual time requirement for sport activities using pre
 author: "Anderegg Dionis, Tophinke Alissa"
 date: " 04/07/2021"
 output: html_document
+runtime: shiny
 bibliography: references.bib
 ---
 
@@ -28,6 +29,7 @@ remotes::install_github("grimbough/FITfileR")
 library(FITfileR)
 library(gdata)
 library(plotly)
+library(ggside)
 
 #Packages for DEM import and handling
 library(raster)
@@ -87,6 +89,8 @@ Sport watches are a popular tool to monitor and regulate training activities amo
 
 ### 2.1 Data sources and import <a name="subparagraph2"></a>
 
+andd
+
 The data which can be obtained via the Garmin portal comes within the .fit format. The raw .fit file include spatio-temporal information , such as timestamp, position (Latitude and Longitude) as well as other variables like heart-rates, distance, enhanced-speed, enhanced-altitude (air pressure based) and cadence (cadence is defined as the total number of steps per minute).
 
 A dataset (data.frame) was generated using sports tracks data from a garmin-sportwatch from two different anonymous athletes (athlete 01, athlete 02). For this purpose, the files of every athlete must be labeled with *\_a1* or *\_a2* right before the file extension *.fit* and saved in the project directory in advance. Thus, files from from athlete 1 always are labeled with *\_a1.fit* at the end of the file name. An example of a track by athlete 01 would be: *"6128842359_ACTIVITY_a1.fit".*
@@ -144,7 +148,9 @@ head(full)
 
 ### 2.2 Preparation and evaluation of data <a name="subparagraph3"></a>
 
-In order to distinguish between the different tracks of an athlete, an individual ID per track had to be created first. This was fulfilled by determining the time lag first, i.e. the time that elapsed between 2 recorded points. A new "activity_ID" was then given if timelag \> 1 hour (3600s). As timelags between
+tophal
+
+In order to distinguish between the different tracks of an athlete, an individual ID per track had to be created first. This was fulfilled by determining the time lag first, i.e. the time that elapsed between 2 recorded points. A new "activity_ID" was then given if timelag \> 1 hour (3600s).
 
 ```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
 # Calculate timelag
@@ -166,10 +172,16 @@ summary(full$timelag)
 
 Some variables like distance, speed ("enhanced_speed") and altitude ("enhanced_altitude") are already available in the .fit files, they are compared with the self calculated results.
 
-The distance recorded by the watch was compared with calculated Euclidean step length. To calculate euclidean distance, an sf data.frame was created and converted to Swiss national coordinate system CH1903+ LV95.
+#### 2.2.1 Compare elevation with DEM
+
+andd
+
+To evaluate the altitude data of the device derived from air pressure, a suitable digital elevation model (DEM) was found and used in order to compare the information of the .fit files. Such a DEM is available as Cloud Optimized GeoTIFF from Swisstopo and is called "SwissALTI3D". A low raster size of 2m was used to achieve high quality information. The DEM is divided into different GeoTIFF files, each covering an area of one square kilometre. Reading and merging all DEM Files from Switzerland or the Canton of St.Gallen would be very time consuming. Therefore, the area of investigation was defined on the basis of the tracks read in and then only the necessary DEM raster files were imported.
+
+The URLs to the files consist of a fixed part and a part dependent on the location. This dependent part was determined on the basis of the examination area. For this purpose, each x- and y-coordinate was floor rounded to a kilometre. All unique combinations of rounded x- and y-coordinates were then listed and the necessary URLs defined by the unique combinations and the fixed part of the links. As the URLs contain the date of the latest reevaluation of the model, some links contain the the number 2019 while some others contain the number 2020. Thus, all the links were created twice (each for 2019 and 2020). In comparison to the complete list of all available DEM files in Switzerland, the correct URLs (containing the year 2019 or 2020) were selected and used for the import of the DEM. For this purpose, a for loop was programmed, which downloads the required files from the URLs described before and merges them into a single raster.
 
 ```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
-# Create sf and convert to CH1903+ LV95 to calculate the euculidian distance
+# Create sf and convert to CH1903+ LV95
 full_sf <- st_as_sf(full, coords = c("position_long", "position_lat"),
          crs = 4326)
 full_sf <- st_transform(full_sf, crs = 2056)
@@ -179,15 +191,9 @@ options(digits = 3)
 # get x and y coordinates from sf geometry
 full_sf$x <- st_coordinates(full_sf$geometry)[,1]
 full_sf$y <- st_coordinates(full_sf$geometry)[,2]
-```
 
-To evaluate the altitude data of the device derived from air pressure, a suitable digital elevation model (DEM) was found and used in order to compare the information of the .fit files. Such a DEM is available as Cloud Optimized GeoTIFF from Swisstopo and is called "SwissALTI3D". A low raster size of 2m was used to achieve high quality information. The DEM is divided into different GeoTIFF files, each covering an area of one square kilometre. Reading and merging all DEM Files from Switzerland or the Canton of St.Gallen would be very time consuming. Therefore, the area of investigation was defined on the basis of the tracks read in and then only the necessary DEM raster files were imported.
-
-The URLs to the files consist of a fixed part and a part dependent on the location. This dependent part was determined on the basis of the examination area. For this purpose, each x- and y-coordinate was floor rounded to a kilometre. All unique combinations of rounded x- and y-coordinates were then listed and the necessary URLs defined by the unique combinations and the fixed part of the links. As the URLs contain the date of the latest reevaluation of the model, some links contain the the number 2019 while some others contain the number 2020. Thus, all the links were created twice (each for 2019 and 2020). In comparison to the complete list of all available DEM files in Switzerland, the correct URLs (containing the year 2019 or 2020) were selected and used for the import of the DEM. For this purpose, a for loop was programmed, which downloads the required files from the URLs described before and merges them into a single raster.
-
-```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
 ##  digital elevation model to verify altitude for each GPS location
-#    we only import the necessary data now!
+#    we only import the necesary data now!
 
 # Create a Dataframe containing all positions (floor-rounded to 1km) as information source for required DHM-rasters
 DHM_rasters <- data.frame(
@@ -230,7 +236,7 @@ for(i in 1:length(DHM_required$DHM_URL)){
 
 As shown in the plot below, only the DEM-rasters of the observation area have been imported. The points show all the x and y coordinates that have been tracked by the athlete.
 
-```{r echo=FALSE, message=FALSE, warning=FALSE, fig.cap="Figure 1: Digital elevation model (DEM) of the overservation area and all x and y coordinates of the analysed tracks"}
+```{r echo=FALSE, fig.cap="Figure", message=FALSE, warning=FALSE}
 # Create a Rasterlayer from raster-list
 m <- do.call(merge, r.list)
 
@@ -242,7 +248,7 @@ points(full_sf$x, full_sf$y)   # Add all points to the DEM-Graphic
 Finally, the height information from the DEM could be extracted for every single x- and y-coordinate of the tracks to be analysed. By joining the hight information from the DEM with the coordinates of the tracks the accuracy of the elevation measurement by the pressure was possible. Since the pressure measurement leads to constant fluctuations in the altitude information, the altitude information from the DEM is considered more reliable and is used for subsequent evaluations.
 
 ```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
-# Reading of other tracks all over Switzerland will result in the import of the required rasters above!! :)
+# Reading of other tracks all over switzerland will result in the import of the required rasters above!! :)
 
 # Extract elevation information from rasterlayer
 data.matrix <- as.data.frame(rasterToPoints(m))
@@ -265,10 +271,42 @@ full_sf <- left_join(full_sf, data.matrix, by = c("x_round", "y_round"))
 full_sf$altitude_diff <- full_sf$layer - full_sf$enhanced_altitude
 ```
 
+#### 2.2.2 Calculate euclidian steplength
+
+tophal
+
+The distance recorded by the watch was compared with calculated Euclidean step length. To calculate euclidean distance, an sf data.frame was created and converted to Swiss national coordinate system CH1903+ LV95.
+
+```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
+# calculate Euclidian step length and speed
+full_sf <- full_sf %>%
+  group_by(activity_ID) %>%
+  mutate(
+    Track_Distance = max(distance),
+    steplength = sqrt((x - lead(x))^2 + (y - lead(y))^2),
+    steplength_sum = lag(cumsum(replace_na(steplength,0))),
+    hightdiff = lead(layer) - layer, # laver is the elevation from the DEM!
+    hightdiff_up = ifelse(hightdiff > 0, hightdiff, 0),
+    hightdiff_down = ifelse(hightdiff < 0, hightdiff, 0)
+  )
+
+#compare distance and steplength_sum
+
+#generate random tracks to check
+random_tracks <-sample(full_sf$activity_ID, 6)
+
+#### Distance (absolute or in percent) instead of comparison
+
+full_sf$distance_diff <- (full_sf$steplength_sum - full_sf$distance) / full_sf$Track_Distance
+```
+
+#### 2.2.3 Rolling windows
+
+tophal
+
 Moreover, a rolling window function with different k-values was generated in order to smoothen the time step-values. With this, speed was also calculated, compared with the data from the sportwatch (enhanced_speed multiplied by 3.6 to get the unit km/h) and plotted. The plots of 6 randomly selected tracks show that there are hardly any deviations between distance (and speed) from the .fit file and the calculated distance / speed values. Therefore, the distances from the sports watch are used for further calculations.
 
-
-```{r}
+```{r message=TRUE, warning=TRUE, include=FALSE, paged.print=TRUE}
 # speed from tracker in km/h
 full_sf$enhanced_speed_kmh <- full$enhanced_speed *3.6
 
@@ -289,16 +327,6 @@ full_sf <- full_sf %>%
   group_by(activity_ID) %>%
   mutate(Track_Distance = max(distance)) %>%
   ungroup()
-
-######## Use this graph for report
-full_sf %>%
-  gather(window, speed, enhanced_speed_00 : enhanced_speed_50) %>%
-  ggplot(aes(window, speed)) +
-  geom_violin() +
-  facet_wrap(~as.Date(timestamp))+
-  theme_bw() +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
-  labs(x = "\nsize of the moving window", y = "speed in km/h\n")
 
 #check moving windows for track distances > 10km
 full_sf %>%
@@ -324,9 +352,23 @@ full_sf %>%
 
 #generate one random track in order to check (for athlete 1)
 random_track <-sample(full$activity_ID, 1)
+```
 
-############## Use in Report!
-# How "k-value" affects the variety in speed:
+```{r echo=FALSE, message=TRUE, warning=TRUE, paged.print=TRUE}
+######## Use this graph for report
+full_sf %>%
+  gather(window, speed, enhanced_speed_00 : enhanced_speed_50) %>%
+  ggplot(aes(window, speed)) +
+  geom_violin() +
+  facet_wrap(~as.Date(timestamp))+
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  labs(x = "\nsize of the moving window", y = "speed in km/h\n")
+
+```
+
+```{r echo=FALSE, message=TRUE, warning=TRUE, paged.print=TRUE}
+
 full_sf %>%
   filter(activity_ID == random_track) %>%
   gather(smoother, speed, enhanced_speed_00 : enhanced_speed_50) %>%
@@ -334,15 +376,100 @@ full_sf %>%
   geom_line() +
   theme_bw()
 ggplotly()
-
-
 #### USe k = 3 for further analysis
-
 ```
 
+#### 2.2.4 Define static and moving points
 
+tophal
+
+```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
+
+#Remove “static points”
+
+#Define threshold 
+
+#plot trajectories with behavior pattern (static/moving) for Athlete 01 
+#a) check data: histogram for speed for different tracks 
+
+speed_mean <- mean(full_sf$enhanced_speed_03, na.rm=TRUE)
+
+full_sf %>% 
+  ggplot()+
+  geom_histogram(aes(enhanced_speed_03), binwidth = 0.5)+
+  geom_vline(aes(xintercept=speed_mean),linetype="dashed", color="blue")+
+  geom_vline(aes(xintercept=3.25),linetype="dashed", color="red")+
+  geom_text(x=3.25, y=-30, label="Threshold", color="red")+#set threshold = 3 from visual context
+  geom_text(x=9.92, y=-30, label="mean", color="blue")
+
+### Define as static when speed < 3.25 km/h
+
+
+##all points which are < than the threshold value of 3m/s of enhanced_speed_kmh are defined as static (moving)
+#### Save in full_sf instead of tracks
+full_sf <- full_sf %>% 
+  ungroup() %>%
+  mutate(static = enhanced_speed_03 <= 3.25)
+```
+
+#### 2.2.5 Define outliers
+
+tophal
+
+```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
+#calculate duration of each track and
+#calculate duration of each track without breaks and
+#calculate duration of breaks per track
+
+full_sf_filtered <- full_sf %>% 
+  group_by(activity_ID) %>% 
+  mutate(duration_whole_track = as.numeric(difftime(max(timestamp), min(timestamp), units = "hours"))) %>% #in hours
+  ungroup() %>% 
+  group_by(activity_ID, static) %>% 
+  filter(static == FALSE) %>% 
+    mutate(duration_moving = sum(timelag, na.rm = TRUE) / 3600) %>% 
+  ungroup() %>% 
+  mutate(duration_breaks = (duration_whole_track - duration_moving), 
+         duration_breaks_min = (duration_breaks*60))
+
+
+full_short <- full_sf_filtered %>% 
+  group_by(activity_ID) %>% 
+  summarize(duration_track = mean(duration_whole_track), 
+            duration_moving = mean(duration_moving), 
+            duration_breaks = mean(duration_breaks), 
+            duration_breaks_min= mean(duration_breaks_min)) %>%
+  ungroup() 
+
+  ggplot(full_short)+
+    geom_col(aes(x=(reorder(activity_ID,-duration_moving)),y=duration_moving))+
+    coord_flip()+
+    theme_bw()+
+    ylim(0,3)+
+    labs(title="moving duration of the tracks",
+        x ="activity ID", y = "time in hours")
+  
+   
+min(full_short$duration_moving)
+max(full_short$duration_moving)
+
+max(full_short$duration_moving)*1.1 #consider 10% deviation --> 3.05h 
+
+  
+#tracks duration beween 0.235 h and 2.77h for athlete 1  --> model prediction should not consider routes >3h
+
+
+#investigation for outliers
+
+#function for outlier hat will return a boolean TRUE/FALSE if the value passed to it is an outlier: 
+is_outlier <- function(x) {
+  return(x < quantile(x, 0.25) - 1.5 * IQR(x) | x > quantile(x, 0.75) + 1.5 * IQR(x))
+}
+```
 
 ### 2.3 Model individual time requirement <a name="subparagraph4"></a>
+
+andd
 
 To model the time requirement of an activity, distance and altitude differences (upwards and downwards) were used as predictors in a first step. Subsequently, the model was refined by including fatigue (based on the time estimation of the model). Fatigue was included because the first model led to a systematic overestimation of the time needed for short activities, whereas the time needed for longer activities was underestimated.
 
@@ -358,188 +485,111 @@ Exhaustion Model: Due to exhaustion, the simple model leads to an overestimation
 
 **A) Distance**
 
+tophal
+
 The comparison between the recorded distances and those from Eucliedean Distance shows that..
 
-![Fig. 1](plots_figures/compare_distance.jpg "compare distance of random tracks")
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
+hist(full_sf$distance_diff)  # Use histogram and describe that maximal deviation is around 1 % +-
+```
 
-**B) speed**
+**B) Altitude**
 
-The comparison between the recorded speed values and those from Eucliedean Distance and timestap show..
-
-![Fig. 1](plots_figures/compare_speed.jpg "compare speed of random tracks")
-
-{{< plotly json="/plotly/fig1.json" height="700">}}
-
-**C) Altitude**
+andd
 
 evaluate altitude with DEM
 
-![Fig. 2](plots_figures/altitude_difference.jpg "Difference altitude")
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
+# Test accuracy of elevation measurement
+full_sf %>%
+  gather(source, value, enhanced_altitude, layer) %>%
+  filter(activity_ID < 10) %>%
+  ggplot(aes(timestamp, value, col = source)) +
+  geom_line() +
+  facet_wrap(~activity_ID, scales = "free") +
+  theme_bw()+
+  labs(x = "\ntimestamp hh:mm", y = "altitude measurement m a.s.l.\n")+
+  theme(legend.position = "bottom")
+
+p.hightdiff <- full_sf %>%
+  ggplot(aes(timestamp, altitude_diff)) +
+  geom_line() +
+  facet_wrap(~activity_ID, scales = "free") +
+  theme_bw() +
+  labs(x = "\ntimestamp hh:mm", y = "altitude difference (DEM - pressure measurement) in m\n")
+p.hightdiff <- ggplotly(p.hightdiff)
+p.hightdiff
+
+```
 
 ### 3.3 Research Question 1 <a name="subparagraph1"></a>
 
+#### 3.3.1 Visualization of the tracks on map
+
+andd
+
+ggplot:
+
+```{r, message=FALSE}
+#### Tidy this chapter (andd)
+# Visualisierung mit ggplot ohne Karte
+library(tidyverse)
+ggplot(full_sf, aes (x, y, col = enhanced_speed_kmh)) +
+  geom_point() +
+  facet_wrap(~activity_ID, scales = "free") +
+  theme_bw()
+```
+
+Leaflet ist interaktiv (m.E. sehr cool ;)) aber weniger einfach zu bearbeiten als ggplot oder ggmap (facets und einfärben von Datenpunkten etc.).
+
+```{r, message = FALSE}
+# Visualiseriung mit leaflet() => Interaktiv, schwer zu bearbeiten
+library(leaflet)
+
+# Track 1
+m1 <- full %>%
+  ungroup() %>%
+  filter(activity_ID ==random_track) %>%
+  dplyr::select(position_long, position_lat) %>% 
+  as.matrix() %>%
+  leaflet(  ) %>%
+  addTiles() %>%
+  addPolylines( )
+m1
+```
+
+ggmap(), Da die Karten importiert werden müssen nur für 3 Tracks gezeigt:
+
+```{r, message = FALSE}
+# Visualiserung mit ggmap
+track1_3 <- full %>%
+  filter(activity_ID == 1 | activity_ID == 3) %>%
+  mutate(speed = enhanced_speed *3.6)
+
+library(ggmap)
+
+myLocation <- c(min(track1_3$position_long), min(track1_3$position_lat), 
+                max(track1_3$position_long), max(track1_3$position_lat))  # Position definieren für Karten
+
+myMap <- get_stamenmap(bbox=myLocation, maptype="terrain", crop=TRUE, zoom = 14)  # Kartenimport
+
+ggmap(myMap) +
+  geom_point(data = filter(track1_3), 
+             aes(position_long,position_lat, col = speed)) +
+  facet_wrap(~activity_ID) +
+  labs(x = "\nLängengrad [°E]", y = "Breitengrad [°N]\n")
+```
+
+#### 3.3.2 Shiny
+
+tophal
+
 To answer research question 1, an exploratory data analysis (EDA) of the collected tracks was first conducted.
-
-![](plots_figures/diff_up_diff_down.jpg){width="557"}
-
-[plot](http://127.0.0.1:5813 "plot"): A: altitude difference down, B: altitude difference up for track 2, athlete 1
 
 The Shiny app was programmed to browse through the different tracks of an athlete. Via dropdown menu it is possible to choose between the different tracks:
 
-```{r echo = FALSE}
-
-#all codes for shiny app ---------------
-
-library(rgdal) 
-library(sf)
-library(tidyverse)
-library(lubridate)
-library(zoo)
-library(purrr)
-library(base)
-library(ggpubr)
-
-if(!requireNamespace("remotes")) {
-    install.packages("remotes")
-}
-remotes::install_github("grimbough/FITfileR")
-
-library(FITfileR)
-library(gdata)
-library(plotly)
-
-#Packages for DEM import and handling
-library(raster)
-library(tiff)
-# Files of every ahtlete must be labelled with _a1, _a2 or a_3 before the .fit extension.
-
-#  Get all the files per athlete
-myfiles_a1 <- list.files(".",pattern = "*a1.fit")
-myfiles_a2 <- list.files(".",pattern = "*a2.fit")
-myfiles_a3 <- list.files(".",pattern = "*a3.fit")
-
-# Import files from athlete 1 temporary
-for (i in 1:length(myfiles_a1)) {
-  varName <- paste0("temp_a1", i, ".fit")
-  assign(varName, as.data.frame(records(readFitFile(myfiles_a1[i]))))
-}
-
-# Bind row for athlete 1 temporary, label as athelte 1
-a1 <- mget(ls(pattern="temp_a1")) %>%
-              bind_rows() %>%
-  mutate(athlete = 1)
-
-# Import files from athlete 2 temporary
-for (i in 1:length(myfiles_a2)) {
-  varName <- paste0("temp_a2", i, ".fit")
-  assign(varName, as.data.frame(records(readFitFile(myfiles_a2[i]))))
-}
-
-# Bind rows from athlete 2 temporary, label as athelte 2
-a2 <- mget(ls(pattern="temp_a2")) %>%
-              bind_rows() %>%
-  mutate(athlete = 2)
-
-# Import files from athlete 3 temporary
-for (i in 1:length(myfiles_a3)) {
-  varName <- paste0("temp_a3", i, ".fit")
-  assign(varName, as.data.frame(records(readFitFile(myfiles_a3[i]))))
-}
-
-# Bind rows from athlete 2 temporary, label as athelte 3
-a3 <- mget(ls(pattern="temp_a3")) %>%
-              bind_rows() %>%
-  mutate(athlete = 3)
-
-# Bind files from all athletes using rowbind.
-full <- bind_rows(a1, a2, a3)
-
-keep(full, sure = TRUE)
-
-#check full
-head(full)
-
-# speed from tracker in km/h
-full$enhanced_speed_kmh <- full$enhanced_speed *3.6
-
-# Create sf and convert to CH1903+ LV95 to calculate the euculidian distance
-full_sf <- st_as_sf(full, coords = c("position_long", "position_lat"),
-         crs = 4326)
-full_sf <- st_transform(full_sf, crs = 2056)
-
-options(digits = 3)
-
-# get x and y coordinates from sf geometry
-full_sf$x <- st_coordinates(full_sf$geometry)[,1]
-full_sf$y <- st_coordinates(full_sf$geometry)[,2]
-
-
-##  digital elevation model to verify altitude for each GPS location
-#    we only import the necesary data now!
-
-# Create a Dataframe containing all position (floor-rounded to 1km) as information source for required DHM-rasters
-DHM_rasters <- data.frame(
-  x = floor(full_sf$x / 1000),
-  y = floor(full_sf$y / 1000)
-)
-# There are NA's when GPS-Position wasn't found (Activity_ID = 19) => Exclude them!
-DHM_rasters <- filter(DHM_rasters, x > 0)
-
-# Only keep the unique combinations for rounded x and y
-DHM_rasters <- unique(DHM_rasters[c("x", "y")])
-
-# Create the Download-Links of the tiff-files from Swisstopo: 
-#  Sometimes data is from 2020, sometimes from 2019. Links aren't the same. So every combination has to be
-#  produced for 2019 data and 2020 data.
-DHM_URL <- c(
-  paste("https://data.geo.admin.ch/ch.swisstopo.swissalti3d/swissalti3d_2019_", DHM_rasters$x, 
-        "-", DHM_rasters$y, "/swissalti3d_2019_", DHM_rasters$x, "-", DHM_rasters$y, 
-        "_2_2056_5728.tif", sep = ""),
-  paste("https://data.geo.admin.ch/ch.swisstopo.swissalti3d/swissalti3d_2020_", DHM_rasters$x, 
-        "-", DHM_rasters$y, "/swissalti3d_2020_", DHM_rasters$x, "-", DHM_rasters$y,
-        "_2_2056_5728.tif", sep = ""))
-
-# Create a data.frame for join later...
-DHM_URL <- as.data.frame(DHM_URL)
-
-# Read all available DEM-sources for whole Switzerland
-DHM_full <- read_csv("DHM_CH.csv", col_names = "DHM_URL")
-
-# Keep only DEM-sources, which are available in the source DHM_full (wohle Switzerland)
-#  This ensures that the correct link (2019 or 2020) is chosen from DHM_full
-DHM_required <- inner_join(DHM_URL, DHM_full)
-
-# Now import all the required URL's as raster-list
-r.list <- list()
-for(i in 1:length(DHM_required$DHM_URL)){  
-  r.list[[i]] <- raster(DHM_required$DHM_URL[i])  
-} 
-
-# Create a Rasterlayer from raster-list
-m <- do.call(merge, r.list)
-
-# Visialize imported data
-plot(m)  # This should exactly cover the tracks used until now. 
-# Reading of other tracks all over switzerland will result in the import of the required rasters above!! :)
-
-# Extract elevation information from rasterlayer
-data.matrix <- as.data.frame(rasterToPoints(m))
-
-# Create identical names for join:
-names(data.matrix)[names(data.matrix) == "x"] <- "x_round"
-names(data.matrix)[names(data.matrix) == "y"] <- "y_round"
-
-# create rounded x and y as join-key => every two meters, always odd values!
-full_sf$x_round <- as.numeric(2 * round(full_sf$x/2) + 1)  
-full_sf$y_round <- as.numeric(2 * round(full_sf$y/2) + 1)
-
-# Join elevation 
-full_sf_join <- left_join(full_sf, data.matrix, by = c("x_round", "y_round"))
-
-# Calculate altitude difference between pressure measurement and DHM layer.
-full_sf_join$altitude_diff <- full_sf_join$layer - full_sf_join$enhanced_altitude
-
-full_long <- gather(full, type, value, enhanced_altitude:heart_rate, enhanced_speed_kmh)
+```{r}
+full_long <- gather(full_sf, type, value, layer, heart_rate, enhanced_speed_03)
 
 library(shiny)
 library(plotly)
@@ -563,7 +613,7 @@ plot_speed_altitude_heartrate_function <- function(track_ID){
 }
 
 #count number of tracks (unique activity ID)
-number_of_tracks <- length(unique(full$activity_ID))
+number_of_tracks <- length(unique(full_sf$activity_ID))
 number_of_tracks
 
 all_plots_speed_altitude_heartrate <- list() #create empty array
@@ -583,13 +633,24 @@ server <- shinyServer(function(input,output){
 
 #get userinterface 
 shinyApp(ui,server)
-
-
 ```
 
---- output: html_document runtime: shiny ---
+#### 3.3.3 Summary of tracks
 
-How altitude differences "up" affect speeds:
+```{r}
+#### Use values from full_short! (andd)
+zf <- full_sf_filtered %>% #zf because of "Zusammenfassung" in german
+  st_drop_geometry() %>%
+  group_by(activity_ID) %>%
+  summarise(
+    date = date(timestamp[1]),
+    distance = max(distance, na.rm = TRUE),
+    time = sum(timelag, na.rm = TRUE)/60,
+    hightdiff_up = sum(hightdiff_up, na.rm = TRUE),
+    hightdiff_down = sum(hightdiff_down, na.rm = TRUE),
+    mean_pace = time / distance * 1000
+    )
+```
 
 ### 3.4 Research Question 2 <a name="subparagraph1"></a>
 
@@ -601,13 +662,55 @@ In order to produce a model in chapter 3.5, some framework conditions must first
 
 To identify possible outliers,
 
-The statistical analysis showed that track 1, 9, 14 should be removed and that the running time for the prediction model should not be longer than 3h (system boundary).
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
+full_short %>%
+  mutate(outlier = ifelse(is_outlier(duration_moving), activity_ID, as.numeric(NA))) %>%
+  ggplot(aes(x = activity_ID, y = duration_moving)) +
+    geom_boxplot() +
+    geom_text(aes(x = 10.25, label = outlier), na.rm = TRUE, hjust = -0.2)+
+  theme_bw()+
+    labs(title="moving duration of the tracks",
+        x ="", y = "time in hours\n") +
+  theme(axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank())
+#track 1 has to be controlled for possible outliers
+```
 
-![](plots_figures/breaks_movingtime.jpg)
+The statistical analysis showed that track 1, 9, 14 should be removed and that the running time for the prediction model should not be longer than 3h (system boundary).
 
 #### 3.4.2 Heart pulse <a name="subparagraph1"></a>
 
 According to Such and Meyer (2010) the maximum heart rate (HRmax) is calculated as 220-age for running and 200-age for biking (rule of thumb). Also, women-specific calculations such as HFmax = 206 - (age x 0.88) (also rule of thumb) exist (Gulati et al). Since only data from male athletes exist in this work, it will not be used further. Therefore, it is important that the data used is up to date or at leas approximately the same as the current age.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
+#max heart rate --literature athlete 1 
+#date of athlete 1
+birth_athelete1 <- as.Date('1991-11-16')
+now <- Sys.time()
+
+age_a1 <- time_length(difftime(now, birth_athelete1), "years")
+age_a1
+
+max_heart_rate_literature <- 220-age_a1
+high_rate <- (max_heart_rate_literature*0.86)
+
+
+tracks_heart <- full_sf %>% 
+  group_by(activity_ID) %>% 
+    mutate(high = heart_rate > (high_rate), na.rm = TRUE)
+
+
+#make plot with heart_rate normal (training) and high rate
+ggplotly (tracks_heart%>%
+  ggplot(aes(x, y, col=(high)))  +
+  geom_path() +
+  geom_point() +
+  coord_fixed() +
+  theme(legend.position = "right")+
+  facet_wrap(.~activity_ID)+
+  scale_color_manual(values=c("#E69F00", "red")))
+```
 
 According to the American Heart Association, the following target heart rate are recommended:
 
@@ -621,7 +724,175 @@ Therefore
 
 ### 3.5 Research Question 3 <a name="subparagraph1"></a>
 
+Model basis =\> Segmeentation of all Tracks by cuts of 1 minute
+
+```{r}
+full_sf_min <- full_sf_filtered %>%
+  st_drop_geometry() %>%
+  group_by(activity_ID) %>%
+  mutate(Track_Distance = max(distance)) %>%
+  group_by("time" = cut(timestamp, "1 min")) %>%
+  summarise(
+    distance = sum(steplength, na.rm = TRUE),
+    Track_Distance = Track_Distance[1],
+    hightdiff_up = sum(hightdiff_up, na.rm = TRUE),
+    hightdiff_down = sum(-hightdiff_down, na.rm = TRUE),
+    hightdiff_balance = hightdiff_up + hightdiff_down,
+    time_run = sum(timelag, na.rm = TRUE),
+    mean_pace = time_run / distance * 1000 / 60
+  ) %>%
+  mutate(vertical_direction = ifelse(hightdiff_balance > 2, "up",
+                                      ifelse(hightdiff_balance < -2, "down",
+                                             "horizontal")))
+```
+
+Multimodel Inference:
+
+```{r}
+# Create a linear Model to calculate time by dist, hightdiff:
+min.model <- lm(time_run/60 ~ 0 + distance + hightdiff_up + hightdiff_down, data=full_sf_min)
+options(na.action="na.fail")
+allmodels.min <- dredge(min.model)   # Create all possible models
+allmodels.min 
+# Lowest AICc Value for model 8 using all parameters
+
+importance(allmodels.min)   # All Parameters are important!
+
+avgmodel.min<-model.avg(get.models(dredge(min.model,rank="AICc"),subset=TRUE))
+summary(avgmodel.min) # All predictors are highly significant!
+
+# Extract coefficients from the best Model [1]
+distance_param_min <- allmodels.min$distance[1]
+up_param_min <- allmodels.min$hightdiff_up[1]
+down_param_min <- allmodels.min$hightdiff_down[1]
+
+# Estimate time requirement based on above created model parameters
+zf$time_estimated_min <- zf$distance *distance_param_min + zf$hightdiff_up * up_param_min + zf$hightdiff_down * down_param_min
+
+# Plot measured and estimated time: Model underestimates time requirement for long activities,
+#  and overestimates for short activities (see following plots)
+zf %>% 
+  dplyr::select(activity_ID, measured = time, estimated = time_estimated_min, distance, hightdiff_up, hightdiff_down) %>%
+  gather(type, value, measured, estimated) %>%
+  ggplot(aes(reorder(activity_ID, -distance), value, col = type)) +
+  geom_point() +
+  theme_bw() +
+  labs(x = "\nactivity-ID", y = "time requirement in minutes\n")
+
+# Exhaustion can be seen here
+zf %>% 
+  dplyr::select(activity_ID, measured = time, estimated = time_estimated_min, distance, hightdiff_up, hightdiff_down) %>%
+  mutate(deviation = estimated / measured -1) %>%
+  ggplot(aes(reorder(activity_ID, -distance), deviation, fill = deviation)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  geom_label(aes(label = paste(round(deviation,2)*100, "%", sep = "")), fill = "white")+
+  geom_xsidepoint(aes(y = distance)) +
+  theme_bw() +
+  labs(x = "\nactivity-ID", y = "relative under- and overestimation of time requirement // distance")
+
+# Adjust Model from above with exhaustion: Calculate the time difference between measurement and base
+#  model by the estimated time of the model
+zf$time_diff <- - zf$time_estimated_min + zf$time   # Time estimated - time measured
+adjust.model <- lm(time_diff ~ time_estimated_min, data = zf)
+summary(adjust.model)  # Intercept is significant, time estimation too. R2 = 0.61.
+
+# Create exhaustion coefficient and intercept
+exhausing_coeff <- as.numeric(adjust.model$coefficients[2])
+exhausting_interc <- as.numeric(adjust.model$coefficients[1])
+
+zf$time_estimated_full <- zf$distance *distance_param_min + zf$hightdiff_up * up_param_min + zf$hightdiff_down * down_param_min + zf$time_estimated_min * exhausing_coeff + exhausting_interc
+
+# Still some variation between measurement and estimation (exhaustion) but less systematically!
+zf %>% 
+  dplyr::select(activity_ID, measured = time, estimated = time_estimated_min,  estimated_exhaustion= time_estimated_full, distance, hightdiff_up, hightdiff_down) %>%
+  gather(type, value, measured, estimated_exhaustion, estimated) %>%
+  ggplot(aes(as.factor(reorder(activity_ID, -distance)), value, fill = type)) +
+  geom_bar(stat = "identity", position = "dodge", width = 0.7)+
+  theme_bw() +
+  labs(x = "\nactivity-ID", y = "time requirement in minutes\n")
+
+zf %>% 
+  dplyr::select(activity_ID, measured = time, estimated = time_estimated_full, distance, hightdiff_up, hightdiff_down) %>%
+  mutate(deviation = estimated / measured -1) %>%
+  ggplot(aes(reorder(activity_ID, -distance), deviation, fill = deviation)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  geom_label(aes(label = paste(round(deviation,2)*100, "%", sep = "")), fill = "white")+
+  geom_xsidepoint(aes(y = distance)) +
+  theme_bw() +
+  labs(x = "\nactivity-ID", y = "relative under- and overestimation of time requirement // distance")
+
+
+zf %>%
+  dplyr::select(time, simple = time_estimated_min, exhaustion = time_estimated_full) %>%
+  gather(model, value, simple, exhaustion) %>%
+  ggplot(aes(time, value, col = model)) +
+  geom_abline(intercept = 0, slope = 1, col = "red") +
+  xlim(0,175) +
+  ylim(0,175) +
+  geom_point()+
+  theme_bw() +
+  labs(x = "time measured", y = "time estimated")
+
+# There ist still deviation but less systematical!
+zf %>%
+  dplyr::select(time, simple = time_estimated_min, exhaustion = time_estimated_full) %>%
+  gather(model, value, simple, exhaustion) %>%
+  ggplot(aes(time, value, col = model)) +
+  geom_abline(intercept = 0, slope = 1, col = "black") +
+  xlim(0,75) +
+  ylim(0,75) +
+  geom_point()+
+  theme_bw() +
+  labs(x = "time measured", y = "time estimated")
+  
+
+# Exhaustion Model represents measurement better than simple model without exhaustion.
+zf %>% 
+  dplyr::select(activity_ID, measured = time, simple = time_estimated_min, exhaustion = time_estimated_full, distance, hightdiff_up, hightdiff_down) %>%
+  gather(type, value, measured, simple, exhaustion) %>%
+  ggplot(aes(distance, value, col = type)) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  theme_bw()
+```
+
+```{r}
+Running_Dist <- 13540     # Distance of a route
+Running_up <- 712         # Hightdifference up
+Running_down <- 488       # Hightdifference down
+
+valid_time_simple <- Running_Dist * distance_param_min + 
+  Running_up * up_param_min + 
+  Running_down * down_param_min 
+valid_time_simple         # Gives time estimate with simple model
+
+valid_time_exhaustion <- valid_time_simple + exhausting_interc + valid_time_simple * exhausing_coeff
+valid_time_exhaustion     # Gives time estimate with exhaustion model
+```
+
+```{r}
+# Show the time estimation of different distances and hightdifferences as a 3D plot
+timetable <- data.frame(
+  Distance_m = rep(seq(3000 , 32000,  500), each = 11),
+  hight_difference_m = rep(seq(0,1000, 100), 59)
+)
+
+timetable$simple_model_min <-timetable$Distance_m *distance_param_min + 
+  timetable$hight_difference_m * up_param_min + timetable$hight_difference_m * down_param_min
+timetable$exhaustion_model_min <- round(timetable$simple_model + exhausting_interc + 
+  exhausing_coeff * timetable$simple_model,0)
+
+timeplot <- plot_ly(timetable, x = ~Distance_m, y = ~hight_difference_m, z = ~exhaustion_model_min,
+                    color = ~exhaustion_model_min)
+timeplot
+
+
+
+```
+
 #### 3.5.1 Validation
+
+andd
 
 In order to validate the model for each individual athlete,
 
@@ -629,9 +900,13 @@ A route (\<3h) has been chosen and the independent variables (length, altitude) 
 
 ## 4 Discussion <a name="discussion"></a> {#discussion}
 
+andd
+
 A model could be established, which
 
 ### 4.1 Problems / Further studies<a name="subparagraph2"></a>
+
+tophal
 
 Factors which influence time requirement (and heart rate), include not only the route and its path circumstances, but also
 
