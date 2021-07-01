@@ -517,9 +517,9 @@ There are various packages in R that can be used to visualize location data. In 
 ```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
 # ggplot without map => not included in report
 library(tidyverse)
-ggplot(full_sf, aes (x, y, col = enhanced_speed_kmh)) +
-  geom_point() +
-  facet_wrap(~activity_ID, scales = "free") +
+ggplot() +
+  geom_point(data = full_sf, aes(x, y, col = enhanced_speed_kmh)) +
+  facet_wrap(~activity_ID, scales = "free", ncol= 4) +
   theme_bw()
 ```
 
@@ -574,7 +574,8 @@ myMap <- get_stamenmap(bbox=myLocation, maptype="terrain", crop=TRUE, zoom = 13)
 
 ggmap(myMap) +
   geom_point(data = filter(track1_3, speed > 3.25), 
-             aes(position_long,position_lat, col = speed))
+             aes(position_long,position_lat, col = speed)) +
+  scale_color_gradient(low = "yellow", high = "red")
 ```
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE, fig.cap="Figure 11: Visualization of a track on a map using package ggmap. The color scale represents the elevation at the coordinate."}
@@ -592,7 +593,8 @@ myMap <- get_stamenmap(bbox=myLocation, maptype="terrain", crop=TRUE, zoom = 13)
 
 ggmap(myMap) +
   geom_point(data = filter(track1_3, speed > 3.25), 
-             aes(position_long,position_lat, col = enhanced_altitude))
+             aes(position_long,position_lat, col = enhanced_altitude)) +
+  scale_color_gradient(low = "yellow", high = "red")
 ```
 
 ### Variables affecting the time requirement
@@ -646,11 +648,10 @@ server <- shinyServer(function(input,output){
 
 #get userinterface 
 
-shinyApp(ui,server)
+shinyApp(ui,server, options = list(height = 470))
 ```
 
 Figure 12 plots which show graphically how the variables speed, altitude difference and heart rate behave
-
 
 ### Summary of tracks
 
@@ -705,19 +706,28 @@ full_short %>%
 In figure 14 we see another shiny app which allows to switch between the different tracks in order to visualize running and breaking sections.
 
 ```{r echo=FALSE, fig.cap="Figure 14: Shiny app to select different tracks to examine the breaks in the traces ", fig.height=10, fig.width=7, message=FALSE, warning=FALSE, paged.print=FALSE}
-
+s1 <- data.matrix[seq(1, nrow(data.matrix), 100), ]  # Resize DHM raster to reduce the computing time per plot
+s1 <- rename(s1, elevation = layer)
 #create function for generation of plots for each track
-
 plot_moving_breaks_function <- function(track_ID){
   
   full_sf%>% 
   filter(activity_ID == track_ID) %>%
   ggplot(aes(x = x, y = y))  +
   geom_path() +
+  geom_raster(s1, mapping= aes(x_round, y_round, fill = elevation)) +
   geom_point(aes(colour = static)) +
   theme(legend.position = "right")+
   ggtitle("Moving/breaks during different tracks")+
-  theme_bw()
+  coord_fixed() +
+  xlim (min(filter(full_sf, activity_ID == track_ID)$x - 350, na.rm = T),
+        max(filter(full_sf, activity_ID == track_ID)$x + 350, na.rm = T)) +
+  ylim (min(filter(full_sf, activity_ID == track_ID)$y - 550, na.rm = T),
+        max(filter(full_sf, activity_ID == track_ID)$y + 550, na.rm = T)) +
+  scale_fill_gradientn(colours = terrain.colors(7)) +
+  coord_fixed() +
+  theme_bw()+
+  theme(legend.position = "bottom")
   
 }
 
@@ -741,12 +751,12 @@ server <- shinyServer(function(input,output){
 })
 
 #get userinterface 
-shinyApp(ui,server)
+shinyApp(ui,server, options = list(height = 470))
 
 
 ```
-Figure 14: Shiny app to select different tracks to examine the breaks in the traces
 
+Figure 14: Shiny app to select different tracks to examine the breaks in the traces
 
 Figure 15 shows the relationship between running time and break-time in minutes. The longer the running time, the longer the breaks required. Track 8 was excluded as it involves an extraordinary long pause (outlier).
 
@@ -822,7 +832,7 @@ For beginners the target heart rate will even be smaller. It is the athlete's ch
 
 If red areas appear (see Figure 16), a reduction in speed is recommended.
 
-``````{r echo=FALSE, fig.cap="Figure 16: tracks with indicated high pulse sections (colored in red)", message=FALSE, warning=FALSE, paged.print=FALSE}
+```{r echo=FALSE, fig.cap="Figure 16: tracks with indicated high pulse sections (colored in red)", message=FALSE, warning=FALSE, paged.print=FALSE}
 
 #create function for generation of plots
 
@@ -831,7 +841,7 @@ plot_heart_function <- function(track_ID){
  #make plot with heart_rate normal (training) and high rate
 tracks_heart %>%
   filter(activity_ID == track_ID) %>%
-  ggplot(aes(x, y, col=(high)))  +
+  ggplot(aes(x, y, col=high))  +
   #geom_path() +
   geom_point() +
   coord_fixed() +
@@ -861,17 +871,17 @@ server <- shinyServer(function(input,output){
 })
 
 #get userinterface 
-shinyApp(ui,server)
+shinyApp(ui,server, options = list(height = 470))
 
 ```
-Figure 16: tracks with indicated high pulse sections (colored in red)
 
+Figure 16: tracks with indicated high pulse sections (colored in red)
 
 ## Research Question 3
 
 In this chapter the results about the research question 3 are presented. First, a simple model for time estimation was build and the accuracy of the estimations was calculated. Then, exhaustion was taken into account by a model extension. Additionally, a new jogging route (not covered in the analyzed tracks) was chosen. Before absolving this route, the time requirement was estimated using the exhaustion model. Finally, the time estimation of this new route was compared to the measurement.
 
-#### Simple model
+### Simple model
 
 As described in the methods all activities were segmented in increments of one minute. For these increments the distance and the altitude differences (upwards and downwards) were calculated. These increments were then used to model the time requirement based on the distance and the height differences.
 
@@ -957,7 +967,7 @@ zf %>%
   labs(x = "\nactivity-ID", y = "relative under- and overestimation of time requirement // distance")
 ```
 
-#### Exhaustion model
+### Exhaustion model
 
 To correct the systematical error of the above presented model, the effect of exhaustion was calculated using a linear model. First, the absolute time difference between estimation and measurement was calculated. Subsequently, this difference was modeled by a linear model using the estimated time as predictor of the exhaustion. This leads to the following results:
 
@@ -999,7 +1009,7 @@ zf %>%
 
 ```
 
-#### Comparison of the models and the measurement
+### Comparison of the models and the measurement
 
 Figure 20 additionally shows the measured time requirement per track in descending order as well as the prediction of both models. The exhaustion model seems to predict the time requirement more precise for the most of the activities.
 
@@ -1049,7 +1059,7 @@ zf %>%
   theme_bw()
 ```
 
-#### Validation of the Exhaustion Model
+### Validation of the Exhaustion Model
 
 ```{r include = FALSE}
 Running_Dist <- 13540     # Distance of a route
