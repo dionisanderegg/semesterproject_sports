@@ -75,7 +75,7 @@ In this semester project, sports tracks are analysed using GPS data from "Garmin
 
 ## 1 Introduction <a name="introduction"></a> {#introduction}
 
-Sport watches are a popular tool to monitor and regulate training activities among both professional and amateur athletes. Depending on the product, in addition to GPS data, they also record altitude (e.g. based on air pressure) heart rate or further attributes. This collected data can thus serve to predict some own behavior patterns, such as fitness progress, stress, etc. In this work, it will be evaluated whether existing tracks of an athlete can be used to predict the individual time for a given route. This service is already available on different online-platforms such as *googlemaps* or *SchweizMobil*, but neither the fitness level, age, weight, nor the gender are taken into account for those calculations. Here, apps can be used which analyze those different parameters individually. However, to enable this interpretation step, there is a need of a) evaluating the accuracy of the measured data and b) determining the variables that lead to the desired output (in this case a time estimation). In the study by @gilgen-ammann2020a, the accuracy of the recorded distances of eight commercially available sports watches from Apple, Coros, Garmin, Polar and Suunto was examined in different areas and at different speeds. The results showed that the recorded systematic errors (±limits of agreements) when all measurement areas combined ranged between 3.7 (±195.6) m and -101.0 (±231.3) m, and the mean absolute percentage errors ranged from 3.2% to 6.1%. These results lead to the conclusion that the acquired coordinates should be aligned with a suitable digital elevation model DEM (e.g. SwissALTI3D) before further use of the data.
+Sportwatches are a popular tool to monitor and regulate training activities among both professional and amateur athletes. In addition to GPS data, sport watches nowadays also record altitude (e.g. based on air pressure),heart rate or further attributes. Through this collected data, own behavior patterns can be predicted, such as fitness progress, stress, etc. In this work, it will be evaluated whether existing tracks of an athlete can be used to predict the individual time for a given route. This service is already available on different online-platforms such as *googlemaps* or *SchweizMobil*, but neither the fitness level, age, weight, nor the gender are taken into account for those calculations. This is the reason why apps that can evaluate individual data bring an advantage here. However, to enable this interpretation step from own collected data, there is a need of a) evaluating the accuracy of the measured data and b) determining the variables that lead to the desired output (in this case a time estimation). In the study by @gilgen-ammann2020a, the accuracy of the recorded distances of eight commercially available sports watches from Apple, Coros, Garmin, Polar and Suunto was examined in different areas and at different speeds. The results showed that the recorded systematic errors (±limits of agreements) when all measurement areas combined ranged between 3.7 (±195.6) m and -101.0 (±231.3) m, and the mean absolute percentage errors ranged from 3.2% to 6.1%. These results lead to the conclusion that the acquired coordinates should be aligned with a suitable digital elevation model DEM (e.g. SwissALTI3D) before further use of the data.
 
 ### 1.1 Research Questions <a name="subparagraph1"></a>
 
@@ -89,23 +89,22 @@ The present study focuses on the following research questions:
 
 ## 2 Methods <a name="methods"></a> {#methods}
 
-In the following subchapters the methodology is described in detail. The data sources as well as their import in an R-environment, the data processing and evaluation as well as the method for the creation of a time model are shown.
+In the following subchapters the methodology is described in detail. The data sources and its import in an R-environment, the data processing and evaluation as well as the method for the creation of a time model are shown.
 
-In this report (HTML) only the most relevant outputs are shown in order to confine to the essential results. When using the provided R-Markdown (.Rmd), the underlying R code can be followed in the corresponding method and result chapters.
+Since this report contains a Shiny app, the HTML will only run if the Markdown is open in the background. When opening the HTML report only the most relevant outputs are shown in order to confine to the essential results. When using the provided R-Markdown (.Rmd), the underlying R code can be followed in the corresponding method and result chapters.
 
 ### 2.1 Data sources and import <a name="subparagraph2"></a>
 
-andd =\> done
-
 The data of sport tracks which can be obtained via the Garmin portal comes within the *.fit* format. The raw *.fit* file include spatio-temporal information, such as timestamp, position (Latitude and Longitude) as well as other variables like heart-rates, distance, enhanced-speed, enhanced-altitude (air pressure based) and cadence (cadence is defined as the total number of steps per minute).
 
-A dataset (data.frame) was generated using sports tracks data from a garmin-sportwatch from two different anonymous athletes (athlete 1, athlete 2). For this purpose, the files of every athlete must be labeled with *\_a1* or *\_a2* right before the file extension *.fit* and saved in the project directory in advance. Thus, files from from athlete 1 always are labeled with *\_a1.fit* at the end of the file name. An example of a track by athlete 01 would be: *"6128842359_ACTIVITY_a1.fit".* Tracks of athlete 2 are for example labeled like *6128842359_ACTIVITY_a2.fit".*
+A dataset (data.frame) was generated using sports tracks data from  garmin-sportwatches from two different anonymous athletes (athlete 1, athlete 2). For this purpose, the files of every athlete must be labeled with *\_a1* or *\_a2* right before the file extension *.fit* and saved in the project directory in advance. Thus, files from athlete 1 always are labeled with *\_a1.fit* at the end of the file name. An example of a track by athlete 1 would be: *"6128842359_ACTIVITY_a1.fit".* Tracks of athlete 2 are for example labeled like *6128842359_ACTIVITY_a2.fit".* This allows adding additional data from other athletes anytime. 
 
-A for loop detects all files from athlete 1 and athlete 2 in the project directory. All files per athlete will be combined into one dataset (data.frame) and labeled with a unique athlete ID. For the further steps, the user must specify which athlete is to be considered. This choice is made via the parameter *"Pick Athlete"* in the r-Code*.* The following sections of the methodology and results refer to the evaluation of athlete 1's tracks. The discussion also identifies differences with athlete 2 and assesses whether the methodology presented here could be suitable for evaluating other individuals.
+A for loop detects all files from athlete 1 and athlete 2 in the project directory. All files per athlete will be combined into one dataset (data.frame) and labeled with a unique athlete ID. For the further steps, the user must specify which athlete is to be considered. This choice can be made at the request  *"Pick Athlete"* in the R-Code*.* line 141. 
+The following sections of methodology and results refer to the evaluation of athlete 1's tracks. The discussion also identifies differences with athlete 2 and assesses whether the methodology presented here could be suitable for evaluating other individuals.
 
 ```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
-############### Filter data fro one athlete only (andd)
-# Files of every ahtlete must be labelled with _a1, _a2 or a_3 before the .fit extension.
+############### Filter data fro one athlete only 
+# Files of every athlete must be labeled with _a1, _a2, a_3 or a_x before the .fit extension. (x for any further athlete)
 
 #  Get all the files per athlete
 myfiles_a1 <- list.files(".",pattern = "*a1.fit")
@@ -117,7 +116,7 @@ for (i in 1:length(myfiles_a1)) {
   assign(varName, as.data.frame(records(readFitFile(myfiles_a1[i]))))
 }
 
-# Bind row for athlete 1 temporary, label as athelte 1
+# Bind row for athlete 1 temporary, label as athlete 1
 a1 <- mget(ls(pattern="temp_a1")) %>%
               bind_rows() %>%
   mutate(athlete = 1)
@@ -139,7 +138,7 @@ full <- bind_rows(a1, a2)
 keep(full, sure = TRUE)
 
 
-# Filter the whole data according to athlete to be analysed: Pick an athlete!
+# Filter the whole data according to athlete to be analyzed: Pick an athlete!
 Pick_Athlete <- 1
 
 full <- full %>%
@@ -153,9 +152,7 @@ head(full)
 
 ### 2.2 Preparation and evaluation of data <a name="subparagraph3"></a>
 
-tophal
-
-In order to distinguish between the different tracks of an athlete, an individual ID per track had to be created first. This was fulfilled by determining the time lag first, i.e. the time that elapsed between 2 recorded points. A new "activity_ID" was then given if timelag \> 1 hour (3600s).
+In order to distinguish between the different tracks run by an athlete, an individual ID per track had to be created first. This was fulfilled by determining the time lag first, i.e. the time that elapsed between 2 recorded points. A new "activity_ID" was then created if timelag \> 1 hour (3600s).
 
 ```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
 # Calculate timelag
@@ -181,11 +178,12 @@ Some variables like distance, speed ("enhanced_speed") and altitude ("enhanced_a
 
 #### 2.2.1 Compare Elevation by Pressure with DEM
 
-andd =\> Done
+As the GPS data arrived from the sportwatch comes in the wrong coordinate system, an sf file was created ("full_sf") and convert into the Swiss Swiss national coordinate system *CH1903+ LV95*.
 
-To evaluate the altitude data of the device derived from air pressure, a suitable digital elevation model (DEM) was found and used in order to compare the information of the *.fit* files. Such a DEM is available as Cloud Optimized GeoTIFF from *Swisstopo* and is called *SwissALTI3D*. A low raster size of 2m was used to achieve high quality information. The DEM is divided into different GeoTIFF files, each covering an area of one square kilometer. Reading and merging all DEM Files from Switzerland or the Canton of St.Gallen would be very time and resource consuming. Therefore, the area of investigation was defined automatically on the basis of the tracks read in and then only the necessary DEM raster files were imported.
+To evaluate the altitude data of the device derived from air pressure, a suitable digital elevation model (DEM) was taken and used in order to compare the information of the *.fit* files. The used DEM is available as Cloud Optimized GeoTIFF from *Swisstopo* and is called *SwissALTI3D*. A low raster size of 2m was used to achieve high quality information. The DEM is divided into different GeoTIFF files, each covering an area of one square kilometer. Reading and merging all DEM Files from Switzerland or the Canton of St.Gallen (Since athlete 1 has only run in the canton of St.Gallen) would be very time and resource consuming. Therefore, the area of investigation was defined automatically on the basis of the tracks read in and then only the necessary DEM raster files were imported.
 
-The URLs to the files consist of a fixed part and a part dependent on the location. This dependent part was determined on the basis of the examination area. For this purpose, each x- and y-coordinate was floor rounded to a kilometer. This corresponds to the dependent part of the URLs. Then, all unique combinations of rounded x- and y-coordinates were then listed and the necessary URLs defined by the unique combinations and the fixed part of the links. As the URLs contain the date of the latest reevaluation of the DEM, some links contain the the number 2019 while some others contain the number 2020. Thus, all the links were created twice (each for 2019 and 2020). In comparison to the complete list of all available DEM files in Switzerland, the correct URLs (containing the year 2019 or 2020) were selected and used for the import of the DEM rasters. For this import, a for loop was programmed, which downloads the required files from the URLs described before and merges them into a single raster.
+The URLs to the files consist of a fixed part and a part dependent on the location. This dependent part was determined on the basis of the examination area. For this purpose, each x- and y-coordinate was floor rounded to one kilometer. This corresponds to the dependent part of the URLs. Then, all unique combinations of rounded x- and y-coordinates were then listed and the necessary URLs defined by the unique combinations and the fixed part of the links. As the URLs contain the date of the latest reevaluation of the DEM, some links contain the number 2019 while some others contain the number 2020. Thus, all the links were created twice (each for 2019 and 2020). In comparison to the complete list of all available DEM files in Switzerland, the correct URLs (containing the year 2019 or 2020) were selected and used for the import of the DEM rasters. For this import, a for loop was programmed, which downloads the required files from the URLs described before and merges them into one single raster.
+
 
 ```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
 # Create sf and convert to CH1903+ LV95
@@ -240,7 +238,7 @@ for(i in 1:length(DHM_required$DHM_URL)){
 } 
 ```
 
-As shown in figure x below, only the DEM-rasters of the observation area have been imported automatically. The points additionally show all the x- and y- coordinates that have been tracked by the athlete among all activities. They are all covered by the imported DEM.
+As shown in figure x below, only the DEM-rasters of the runned area have been imported automatically. The points additionally show all the x- and y- coordinates that have been tracked by the athlete among all activities. They are all covered by the imported DEM.
 
 ```{r echo=FALSE, fig.cap="Figure x: Digital elevation model (DEM) of the ovservation area with x and y coordinates of all analysed tracks", message=FALSE, warning=FALSE}
 # Create a Rasterlayer from raster-list
@@ -251,7 +249,7 @@ plot(m)  # This should exactly cover the tracks used
 points(full_sf$x, full_sf$y)   # Add all points to the DEM-Graphic
 ```
 
-Finally, the height information from the DEM could be extracted for every single x- and y-coordinate of the tracks to be analyzed. By joining the height information from the DEM with the coordinates of the tracks the accuracy of the elevation measurement by the pressure was possible. In the results, the absolute heights of both, the DEM and the pressure measurement are shown, as well as the height difference between the two data sources. Since the pressure measurement leads to constant fluctuations in the altitude information (see chapter [3.1.1]{.ul}), the altitude from the DEM is considered more reliable and is used for subsequent evaluations.
+Finally, the height information from the DEM could be extracted for every single x- and y-coordinate of the tracks to be analyzed. By joining the height information from the DEM with the coordinates of the tracks the investigation about accuracy of the elevation measurement by the pressure became possible. In the results, the absolute heights of both, the DEM and the pressure measurement are shown, as well as the height difference between the two data sources. Since the pressure measurement leads to constant fluctuations in the altitude information (see chapter [3.1.1]{.ul}), the altitude from the DEM is considered more reliable and is used for subsequent evaluations.
 
 ```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
 # Reading of other tracks all over Switzerland will result in the import of the required rasters above!! :)
@@ -277,16 +275,16 @@ full_sf <- left_join(full_sf, data.matrix, by = c("x_round", "y_round"))
 full_sf$altitude_diff <- full_sf$layer - full_sf$enhanced_altitude
 ```
 
-#### 2.2.2 Calculation of Euclidian Steplength
+#### 2.2.2 Compare recorded distance with Euclidean Steplength
 
-tophal
+Not only the altitude but also the distance recorded by the watch was compared with own calculations. Therefore, the Euclidean step length was calculated with data from the prepared data.frame "full_sf" where the GPS tracks were converted into the Swiss national coordinate system *CH1903+ LV95* (See chapter 2.2.1). 
+As a preparation, for each runned track the whole distance (Track_Distance), Euclidean Steplength (steplength), the whole runned distance by a given timepoint (steplength_sum), highdifference calculated with data from DEM (highdiff) and highdifference up, if highdiff >0 and down if highdiff <0 was calculated. 
 
-The distance recorded by the watch was compared with calculated euclidean step length. To calculate euclidean distance, an sf data.frame was created and converted to Swiss national coordinate system *CH1903+ LV95*.
-
-The distance between the distance derived by the sportwatch and distance calculation by euclidian distance was compared and presented as deviation in the results.
+The distance between the distance derived by the sportwatch and distance calculation by Euclidean distance was compared and presented later in the results.
 
 ```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
-# calculate Euclidian step length and speed
+# calculate Euclidean step length and speed
+#steplength_sum is distance runned at specific timepoint for each track 
 full_sf <- full_sf %>%
   group_by(activity_ID) %>%
   mutate(
@@ -310,11 +308,10 @@ full_sf$distance_diff <- (full_sf$steplength_sum - full_sf$distance) / full_sf$T
 
 #### 2.2.3 Rolling windows
 
-tophal
-
-Moreover, a rolling window function with different k-values was generated in order to smoothen the time step-values. With this, speed was also calculated, compared with the data from the sportwatch (enhanced_speed multiplied by 3.6 to get the unit km/h) and plotted. The plots of 6 randomly selected tracks show that there are hardly any deviations between distance (and speed) from the *.fit* file and the calculated distance / speed values. Therefore, the distances from the sports watch are used for further calculations.
+In this chapter a rolling window with different k-values was generated in order to smooth the time step-values. In figure x violin plots from all tracks from athlete 1 are shown. Further in figure x all smoothed speed curves are collected and compared to each other. Enhanced_speed_00 is the curve without rolling window (enhanced_speed multiplied by 3.6 to get the unit km/h). Since low values (around 0 km/h) are important to pick out the breaks in further steps, these values must not be lost. For this reason k=3 was defined and used for further calculations.  
 
 ```{r message=TRUE, warning=FALSE, include=FALSE, paged.print=TRUE}
+
 # speed from tracker in km/h
 full_sf$enhanced_speed_kmh <- full$enhanced_speed *3.6
 
@@ -389,9 +386,10 @@ ggplotly(speeds_rW)
 
 #### 2.2.4 Define static and moving points
 
-tophal
+This chapter is about distinguishing the pauses from the run parts.  Since it is also possible to walk around during a pause, a threshold in speed has to be defined. Therefore a histogram with all speed values from Athlete 1 was generated. From visual inspection and together with the data from the violin plots from chapter x, the threshold was defined at <= 3.25 km/h. Therefore all speed values <=3.25km/h were labeld as static = TRUE.   
 
 ```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
+
 
 #Remove “static points”
 
@@ -399,6 +397,7 @@ tophal
 
 #plot trajectories with behavior pattern (static/moving) for Athlete 01 
 #a) check data: histogram for speed for different tracks 
+
 
 speed_mean <- mean(full_sf$enhanced_speed_03, na.rm=TRUE)
 
@@ -424,7 +423,10 @@ full_sf <- full_sf %>%
 
 #### 2.2.5 Define outliers
 
-tophal
+Since the goal for Research Question 3 is a generation of a time prediction model, the time system boundaries must be defined. Therefore, the time prediction must be in the range of the existing data. For this, the real running time was calculated first (from static = False) and the maximum race time was read out. For the model 10% to the maximum value from the existing is allowed. In the case of athlete 1 this means that the time prediction must not be longer than 3h. 
+
+To further detect outliers of the existing data / tracks an is_outlier function was created that will return a boolean TRUE/FALSE. Therefore, an often used rule was applied, which says that a value is an outlier if a value is more than 1.5 x IQR (interquartile range)above the upper quartile (Q3) or below the lower quartile (Q1). In other words, lower outliers are below Q1-1.5 x IQR and upper outliers are above Q3+1.5 x IQR. 
+
 
 ```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
 #calculate duration of each track and
@@ -463,11 +465,10 @@ full_short <- full_sf_filtered %>%
 min(full_short$duration_moving)
 max(full_short$duration_moving)
 
-max(full_short$duration_moving)*1.1 #consider 10% deviation --> 3.05h 
+max(full_short$duration_moving)*1.1 #consider 10% deviation --> 3.01h 
 
   
 #tracks duration beween 0.235 h and 2.77h for athlete 1  --> model prediction should not consider routes >3h
-
 
 #investigation for outliers
 
@@ -479,41 +480,18 @@ is_outlier <- function(x) {
 
 ### 2.3 Model individual time requirement <a name="subparagraph4"></a>
 
-andd
-
 To model the time requirement of an activity, distance and altitude differences (upwards and downwards) were used as predictors in a first step. The distance derived by the sportwatch was used as a comparison with the euclidian distance did not show any relevant differences. In contrast the altitude differences were calculated based on the DEM as these method seems to produce more accurate results. Subsequently, the model was refined by including fatigue (based on the time estimation of the first model). Fatigue was included because the first model led to a systematic overestimation of the time needed for short activities, whereas the time needed for longer activities was typically underestimated.
 
 1.  Simple Model: Before starting with a multimodel inference (multiple regession), the activities were segmented in increments of one minute. Using multimodel inference, all predictors were checked for their importance. Subsequently, the model with the highest AICc value (lowest delta AICc respectively) was selected to model the individual time requirement of athletes.
 
+
 2.  Exhaustion Model: Due to exhaustion, the simple model leads to an overestimation of the time requirement for short activities and tends to underestimate it for longer activities. For this reason, the fatigue component is added to the model. For this purpose, the time difference between prediction and measurement of each track is used and calculated using a linear model, based on the duration of the prediction. This results in a lower time requirement for short activities and a higher time requirement for longer activities. The slope of the linear model increases due to this correction, but by reducing the intercept, the time requirement decreases for short activities.
 
-## 3 Results <a name="paragraph2"></a>
+#3. Results
 
-In the following subchapters...
+## 3.1. Compare data from sportwatch and calulations
 
-### 3.1 Accuracy of the data <a name="subparagraph1"></a>
-
-The accuracy of the data is examined by a comparison of the distances (and speed) as well as the altitude.
-
-#### 3.1.1 Tracked distance vs. calculated distance <a name="subparagraph1"></a>
-
-tophal
-
-The comparison between the recorded distances and those from Eucliedean Distance shows that..
-
-tophal: ich habe das hist noch in einen ggplot umgewandelt, so sehen alle Grafiken einheitlich aus :)
-
-```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
-ggplot(full_sf, aes(distance_diff))+
-  geom_histogram(binwidth = 0.001)+
-  labs(x= "\ndifference between data from sportwatch and euclidian distance\ncalculation of every timestep among all tracks", y = "frequency\n") +
-  theme_bw()+
-  scale_x_continuous(labels = scales::percent)
-```
-
-#### 3.1.2 Altitude by Pressure vs. Altitude from DEM <a name="subparagraph1"></a>
-
-andd =\> done
+### 3.1.1 Altitude by Pressure vs. Altitude from DEM <a name="subparagraph1"></a>
 
 As described in the methods the accuracy of the pressure measurement by sportwatches had to be evaluated. Therefor the pressure derived altitude from the watch was compared to a high resolution digital elevation model (DEM). The analysis includes a comparison of the absolute altitude measurement in metres above sea level and the altitude difference between the two data sources.
 
@@ -547,11 +525,22 @@ full_sf %>%
   labs(x = "\ntimestamp hh:mm", y = "altitude difference (DEM - pressure measurement) in m\n")
 ```
 
+###3.1.2 Tracked distance vs. calculated distance <a name="subparagraph1"></a>
+
+The comparison between the recorded distances and those from Eucliedean Distance shows that..
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
+ggplot(full_sf, aes(distance_diff))+
+  geom_histogram(binwidth = 0.001)+
+  labs(x= "\ndifference between data from sportwatch and euclidian distance\ncalculation of every timestep among all tracks", y = "frequency\n") +
+  theme_bw()+
+  scale_x_continuous(labels = scales::percent)
+```
+
 ### 3.2 Research Question 1 <a name="subparagraph1"></a>
 
 #### 3.2.1 Visualization of the tracks on map
-
-andd =\> done
 
 There are various packages in R that can be used to visualize location data. In the following, some selected tracks are shown by means of such visualizations to provide an overview about the analyzed raw data . We have restricted ourselves to common packages such as leaflet() and ggmaps().
 
@@ -647,6 +636,7 @@ The Shiny app was programmed to browse through the different tracks of an athlet
 ```{r echo=FALSE, fig.cap="Figure x:", fig.height=10, fig.width=7, message=FALSE, warning=FALSE, paged.print=FALSE}
 full_long <- gather(full_sf, type, value, layer, heart_rate, enhanced_speed_03)
 
+>>>>>>> a52b6104feca5832167ea8d4a43b57449d467bce
 library(shiny)
 library(plotly)
 

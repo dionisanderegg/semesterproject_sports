@@ -230,6 +230,8 @@ p.hightdiff <- full_sf %>%
   labs(x = "\ntimestamp hh:mm", y = "altitude difference (DEM - pressure measurement) in m\n")
 p.hightdiff <- ggplotly(p.hightdiff)
 p.hightdiff
+
+htmlwidgets::saveWidget(as.widget(p.hightdiff), "plots_figures/p.hightdifference.html")
 ```
 
 ```{r}
@@ -251,9 +253,20 @@ random_tracks <-sample(full_sf$activity_ID, 6)
 
 #### Distance (absolute or in percent) instead of comparison
 
-full_sf$distance_diff <- (full_sf$steplength_sum - full_sf$distance) / full_sf$Track_Distance
+full_sf$distance_diff <- full_sf$steplength_sum - full_sf$distance
 
-hist(full_sf$distance_diff)  # Use histogram and describe that maximal deviation is around 1 % +-
+
+compare_distance <- full_sf %>%
+  group_by(activity_ID) %>% 
+  filter(activity_ID == random_tracks) %>%
+ ggplot(aes(timestamp, distance_diff)) +
+  geom_line() +
+  facet_wrap(~activity_ID, scales = "free") +
+  theme_bw() +
+  labs(x = "\n time", y = "distance in meters\n")
+
+compare_distance
+ggplotly(compare_distance)
 ```
 
 
