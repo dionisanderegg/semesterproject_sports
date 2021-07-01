@@ -2,9 +2,15 @@
 title: "Modelling the individual time requirement for sport activities using previous GPS-Tracks"
 author: "Anderegg Dionis, Tophinke Alissa"
 date: " 04/07/2021"
-output: html_document
+output:
+  html_document:
+    toc: true
+    theme: united
+    toc_depth: 3  # upto three depths of headings (specified by #, ## and ###)
+    number_sections: true  ## if you want number sections at each table header
 runtime: shiny
 bibliography: references.bib
+fig_caption: true
 ---
 
 ```{r setup, include=FALSE}
@@ -43,41 +49,11 @@ library(MuMIn)
 
 In this semester project, sports tracks are analysed using GPS data from "Garmin" devices to identify specific behavior patterns in jogging activities. Furthermore, the time required for jogging activities is modeled based on the individual fitness level, so that a user-specific forecast of the time required for activities is possible. Model inputs are the distance and altitude differences (upwards and downwards).
 
-# Table of contents
-
-1.  [Introduction](#introduction)
-
-    1.1 [Research questions](#subparagraph1)
-
-2.  [Methods](#methods)
-
-    2.1 [Data sources and import](#subparagraph2)
-
-    2.2 [Evaluation of data](#subparagraph3)
-
-    2.3 [Model individual time requirement](#subparagraph4)
-
-3.  [Results](#paragraph2)
-
-    3.1 [Research Question 1](#subparagraph5)
-
-    3.2 [Research Question 2](#subparagraph6)
-
-    3.3 [Research Question 3](#subparagraph7)
-
-4.  [Disussion](#paragraph3)
-
-    4.1 [Discussionpoint1](#subparagraph8)
-
-    4.2 [Further studies](#subparagraph9)
-
-5.  [Appendix](#paragraph4)
-
-## 1 Introduction <a name="introduction"></a> {#introduction}
+# Introduction
 
 Sportwatches are a popular tool to monitor and regulate training activities among both professional and amateur athletes. In addition to GPS data, sport watches nowadays also record altitude (e.g. based on air pressure),heart rate or further attributes. Through this collected data, own behavior patterns can be predicted, such as fitness progress, stress, etc. In this work, it will be evaluated whether existing tracks of an athlete can be used to predict the individual time for a given route. This service is already available on different online-platforms such as *googlemaps* or *SchweizMobil*, but neither the fitness level, age, weight, nor the gender are taken into account for those calculations. This is the reason why apps that can evaluate individual data bring an advantage here. However, to enable this interpretation step from own collected data, there is a need of a) evaluating the accuracy of the measured data and b) determining the variables that lead to the desired output (in this case a time estimation). In the study by @gilgen-ammann2020a, the accuracy of the recorded distances of eight commercially available sports watches from Apple, Coros, Garmin, Polar and Suunto was examined in different areas and at different speeds. The results showed that the recorded systematic errors (±limits of agreements) when all measurement areas combined ranged between 3.7 (±195.6) m and -101.0 (±231.3) m, and the mean absolute percentage errors ranged from 3.2% to 6.1%. These results lead to the conclusion that the acquired coordinates should be aligned with a suitable digital elevation model DEM (e.g. SwissALTI3D) before further use of the data.
 
-### 1.1 Research Questions <a name="subparagraph1"></a>
+## Research Questions
 
 The present study focuses on the following research questions:
 
@@ -87,20 +63,19 @@ The present study focuses on the following research questions:
 
 3.  How reliably can the time required for sporting activities be predicted based on a user's individual fitness level? A model is created from past GPS tracks, which is validated using a self-experiment (determine new route using *SchweizMobil*, model time requirement and check the model output in a self-experiment).
 
-## 2 Methods <a name="methods"></a> {#methods}
+# Methods
 
 In the following subchapters the methodology is described in detail. The data sources and its import in an R-environment, the data processing and evaluation as well as the method for the creation of a time model are shown.
 
 Since this report contains a Shiny app, the HTML will only run if the Markdown is open in the background. When opening the HTML report only the most relevant outputs are shown in order to confine to the essential results. When using the provided R-Markdown (.Rmd), the underlying R code can be followed in the corresponding method and result chapters.
 
-### 2.1 Data sources and import <a name="subparagraph2"></a>
+## Data sources and import
 
 The data of sport tracks which can be obtained via the Garmin portal comes within the *.fit* format. The raw *.fit* file include spatio-temporal information, such as timestamp, position (Latitude and Longitude) as well as other variables like heart-rates, distance, enhanced-speed, enhanced-altitude (air pressure based) and cadence (cadence is defined as the total number of steps per minute).
 
-A dataset (data.frame) was generated using sports tracks data from  garmin-sportwatches from two different anonymous athletes (athlete 1, athlete 2). For this purpose, the files of every athlete must be labeled with *\_a1* or *\_a2* right before the file extension *.fit* and saved in the project directory in advance. Thus, files from athlete 1 always are labeled with *\_a1.fit* at the end of the file name. An example of a track by athlete 1 would be: *"6128842359_ACTIVITY_a1.fit".* Tracks of athlete 2 are for example labeled like *6128842359_ACTIVITY_a2.fit".* This allows adding additional data from other athletes anytime. 
+A dataset (data.frame) was generated using sports tracks data from garmin-sportwatches from two different anonymous athletes (athlete 1, athlete 2). For this purpose, the files of every athlete must be labeled with *\_a1* or *\_a2* right before the file extension *.fit* and saved in the project directory in advance. Thus, files from athlete 1 always are labeled with *\_a1.fit* at the end of the file name. An example of a track by athlete 1 would be: *"6128842359_ACTIVITY_a1.fit".* Tracks of athlete 2 are for example labeled like *6128842359_ACTIVITY_a2.fit".* This allows adding additional data from other athletes anytime.
 
-A for loop detects all files from athlete 1 and athlete 2 in the project directory. All files per athlete will be combined into one dataset (data.frame) and labeled with a unique athlete ID. For the further steps, the user must specify which athlete is to be considered. This choice can be made at the request  *"Pick Athlete"* in the R-Code*.* line 141. 
-The following sections of methodology and results refer to the evaluation of athlete 1's tracks. The discussion also identifies differences with athlete 2 and assesses whether the methodology presented here could be suitable for evaluating other individuals.
+A for loop detects all files from athlete 1 and athlete 2 in the project directory. All files per athlete will be combined into one dataset (data.frame) and labeled with a unique athlete ID. For the further steps, the user must specify which athlete is to be considered. This choice can be made at the request *"Pick Athlete"* in the R-Code*.* line 141. The following sections of methodology and results refer to the evaluation of athlete 1's tracks. The discussion also identifies differences with athlete 2 and assesses whether the methodology presented here could be suitable for evaluating other individuals.
 
 ```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
 ############### Filter data fro one athlete only 
@@ -150,7 +125,7 @@ full <- full %>%
 head(full)
 ```
 
-### 2.2 Preparation and evaluation of data <a name="subparagraph3"></a>
+## Preparation and evaluation of data
 
 In order to distinguish between the different tracks run by an athlete, an individual ID per track had to be created first. This was fulfilled by determining the time lag first, i.e. the time that elapsed between 2 recorded points. A new "activity_ID" was then created if timelag \> 1 hour (3600s).
 
@@ -176,14 +151,13 @@ summary(full$timelag)
 
 Some variables like distance, speed ("enhanced_speed") and altitude ("enhanced_altitude") are already available in the .fit files, they are compared with the self calculated results. The methodology used for this is described in more detail in the following sub-chapters.
 
-#### 2.2.1 Compare Elevation by Pressure with DEM
+### Compare elevation by pressure with DEM
 
 As the GPS data arrived from the sportwatch comes in the wrong coordinate system, an sf file was created ("full_sf") and convert into the Swiss Swiss national coordinate system *CH1903+ LV95*.
 
 To evaluate the altitude data of the device derived from air pressure, a suitable digital elevation model (DEM) was taken and used in order to compare the information of the *.fit* files. The used DEM is available as Cloud Optimized GeoTIFF from *Swisstopo* and is called *SwissALTI3D*. A low raster size of 2m was used to achieve high quality information. The DEM is divided into different GeoTIFF files, each covering an area of one square kilometer. Reading and merging all DEM Files from Switzerland or the Canton of St.Gallen (Since athlete 1 has only run in the canton of St.Gallen) would be very time and resource consuming. Therefore, the area of investigation was defined automatically on the basis of the tracks read in and then only the necessary DEM raster files were imported.
 
 The URLs to the files consist of a fixed part and a part dependent on the location. This dependent part was determined on the basis of the examination area. For this purpose, each x- and y-coordinate was floor rounded to one kilometer. This corresponds to the dependent part of the URLs. Then, all unique combinations of rounded x- and y-coordinates were then listed and the necessary URLs defined by the unique combinations and the fixed part of the links. As the URLs contain the date of the latest reevaluation of the DEM, some links contain the number 2019 while some others contain the number 2020. Thus, all the links were created twice (each for 2019 and 2020). In comparison to the complete list of all available DEM files in Switzerland, the correct URLs (containing the year 2019 or 2020) were selected and used for the import of the DEM rasters. For this import, a for loop was programmed, which downloads the required files from the URLs described before and merges them into one single raster.
-
 
 ```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
 # Create sf and convert to CH1903+ LV95
@@ -238,9 +212,9 @@ for(i in 1:length(DHM_required$DHM_URL)){
 } 
 ```
 
-As shown in figure x below, only the DEM-rasters of the runned area have been imported automatically. The points additionally show all the x- and y- coordinates that have been tracked by the athlete among all activities. They are all covered by the imported DEM.
+As shown in Figure 1 below, only the DEM-rasters of the runned area have been imported automatically. The points additionally show all the x- and y- coordinates that have been tracked by the athlete among all activities. They are all covered by the imported DEM.
 
-```{r echo=FALSE, fig.cap="Figure x: Digital elevation model (DEM) of the ovservation area with x and y coordinates of all analysed tracks", message=FALSE, warning=FALSE}
+```{r echo=FALSE, fig.cap="Figure 1: Digital elevation model (DEM) of the ovservation area with x and y coordinates of all analysed tracks", message=FALSE, warning=FALSE}
 # Create a Rasterlayer from raster-list
 m <- do.call(merge, r.list)
 
@@ -275,10 +249,9 @@ full_sf <- left_join(full_sf, data.matrix, by = c("x_round", "y_round"))
 full_sf$altitude_diff <- full_sf$layer - full_sf$enhanced_altitude
 ```
 
-#### 2.2.2 Compare recorded distance with Euclidean Steplength
+### Compare recorded distance with Euclidean Steplength
 
-Not only the altitude but also the distance recorded by the watch was compared with own calculations. Therefore, the Euclidean step length was calculated with data from the prepared data.frame "full_sf" where the GPS tracks were converted into the Swiss national coordinate system *CH1903+ LV95* (See chapter 2.2.1). 
-As a preparation, for each runned track the whole distance (Track_Distance), Euclidean Steplength (steplength), the whole runned distance by a given timepoint (steplength_sum), highdifference calculated with data from DEM (highdiff) and highdifference up, if highdiff >0 and down if highdiff <0 was calculated. 
+Not only the altitude but also the distance recorded by the watch was compared with own calculations. Therefore, the Euclidean step length was calculated with data from the prepared data.frame "full_sf" where the GPS tracks were converted into the Swiss national coordinate system *CH1903+ LV95* (See chapter 2.2.1). As a preparation, for each runned track the whole distance (Track_Distance), Euclidean Steplength (steplength), the whole runned distance by a given timepoint (steplength_sum), highdifference calculated with data from DEM (highdiff) and highdifference up, if highdiff \>0 and down if highdiff \<0 was calculated.
 
 The distance between the distance derived by the sportwatch and distance calculation by Euclidean distance was compared and presented later in the results.
 
@@ -306,9 +279,9 @@ random_tracks <-sample(full_sf$activity_ID, 6)
 full_sf$distance_diff <- (full_sf$steplength_sum - full_sf$distance) / full_sf$Track_Distance
 ```
 
-#### 2.2.3 Rolling windows
+### Rolling windows
 
-In this chapter a rolling window with different k-values was generated in order to smooth the time step-values. In figure x violin plots from all tracks from athlete 1 are shown. Further in figure x all smoothed speed curves are collected and compared to each other. Enhanced_speed_00 is the curve without rolling window (enhanced_speed multiplied by 3.6 to get the unit km/h). Since low values (around 0 km/h) are important to pick out the breaks in further steps, these values must not be lost. For this reason k=3 was defined and used for further calculations.  
+In this chapter a rolling window with different k-values was generated in order to smooth the time step-values. In figure 2 violin plots from all tracks from athlete 1 are shown. Further in figure 3 all smoothed speed curves are collected and compared to each other. Enhanced_speed_00 is the curve without rolling window (enhanced_speed multiplied by 3.6 to get the unit km/h). Since low values (around 0 km/h) are important to pick out the breaks in further steps, these values must not be lost. For this reason k=3 was defined and used for further calculations.
 
 ```{r message=TRUE, warning=FALSE, include=FALSE, paged.print=TRUE}
 
@@ -359,7 +332,7 @@ full_sf %>%
 random_track <-sample(full$activity_ID, 1)
 ```
 
-```{r echo=FALSE, message=TRUE, warning=FALSE, paged.print=TRUE, fig.cap="Figure x: Frequency of speeds in km/h depending on rolling window size"}
+```{r echo=FALSE, message=TRUE, warning=FALSE, paged.print=TRUE, fig.cap="Figure 2: Frequency of speeds in km/h depending on rolling window size"}
 ######## Use this graph for report
 full_sf %>%
   gather(window, speed, enhanced_speed_00 : enhanced_speed_50) %>%
@@ -372,7 +345,7 @@ full_sf %>%
 
 ```
 
-```{r echo=FALSE, message=TRUE, warning=FALSE, paged.print=TRUE,fig.cap="Figure x: Speed in km/h of a random track depending on rolling window size"}
+```{r echo=FALSE, message=TRUE, warning=FALSE, paged.print=TRUE,fig.cap="Figure 3: Speed in km/h of a random track depending on rolling window size"}
 
 speeds_rW <- full_sf %>%
   filter(activity_ID == random_track) %>%
@@ -384,11 +357,11 @@ ggplotly(speeds_rW)
 #### USe k = 3 for further analysis
 ```
 
-#### 2.2.4 Define static and moving points
+### Define static and moving points
 
-This chapter is about distinguishing the pauses from the run parts.  Since it is also possible to walk around during a pause, a threshold in speed has to be defined. Therefore a histogram with all speed values from Athlete 1 was generated. From visual inspection and together with the data from the violin plots from chapter x, the threshold was defined at <= 3.25 km/h. Therefore all speed values <=3.25km/h were labeld as static = TRUE.   
+This chapter is about distinguishing the pauses from the running parts. Since it is also possible to walk around during a break, a threshold in speed has to be defined. Therefore a histogram with all speed values from Athlete 1 was generated (see figure 4). From visual inspection oof the histogram and together with the data from the violin plots from chapter x, the threshold was defined at \<= 3.25 km/h. Therefore all speed values \<=3.25km/h were labeld as static = TRUE.
 
-```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE, fig.cap="Figure 4: Speed in km/h of a random track depending on rolling window size"}
 
 
 #Remove “static points”
@@ -421,12 +394,11 @@ full_sf <- full_sf %>%
   mutate(static = enhanced_speed_03 <= 3.25)
 ```
 
-#### 2.2.5 Define outliers
+### Define outliers
 
-Since the goal for Research Question 3 is a generation of a time prediction model, the time system boundaries must be defined. Therefore, the time prediction must be in the range of the existing data. For this, the real running time was calculated first (from static = False) and the maximum race time was read out. For the model 10% to the maximum value from the existing is allowed. In the case of athlete 1 this means that the time prediction must not be longer than 3h. 
+Since the goal for Research Question 3 is a generation of a time prediction model, the time system boundaries must be defined. Therefore, the time prediction must be in the range of the existing data. For this, the real running time was calculated first (from static = False) and the maximum race time was read out. For the model 10% to the maximum value from the existing is allowed. In the case of athlete 1 this means that the time prediction must not be longer than 3h.
 
-To further detect outliers of the existing data / tracks an is_outlier function was created that will return a boolean TRUE/FALSE. Therefore, an often used rule was applied, which says that a value is an outlier if a value is more than 1.5 x IQR (interquartile range)above the upper quartile (Q3) or below the lower quartile (Q1). In other words, lower outliers are below Q1-1.5 x IQR and upper outliers are above Q3+1.5 x IQR. 
-
+To further detect outliers of the existing data / tracks an is_outlier function was created that will return a boolean TRUE/FALSE. Therefore, an often used rule was applied, which says that a value is an outlier if a value is more than 1.5 x IQR (interquartile range)above the upper quartile (Q3) or below the lower quartile (Q1). In other words, lower outliers are below Q1-1.5 x IQR and upper outliers are above Q3+1.5 x IQR.
 
 ```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
 #calculate duration of each track and
@@ -478,26 +450,25 @@ is_outlier <- function(x) {
 }
 ```
 
-### 2.3 Model individual time requirement <a name="subparagraph4"></a>
+## Model individual time requirement
 
-To model the time requirement of an activity, distance and altitude differences (upwards and downwards) were used as predictors in a first step. The distance derived by the sportwatch was used as a comparison with the euclidian distance did not show any relevant differences. In contrast the altitude differences were calculated based on the DEM as these method seems to produce more accurate results. Subsequently, the model was refined by including fatigue (based on the time estimation of the first model). Fatigue was included because the first model led to a systematic overestimation of the time needed for short activities, whereas the time needed for longer activities was typically underestimated.
+To model the time requirement of an activity, distance and altitude differences (upwards and downwards) were used as predictors in a first step. The distance derived by the sportwatch was used as a comparison with the Euclidian distance did not show any relevant differences. In contrast the altitude differences were calculated based on the DEM as these method seems to produce more accurate results. Subsequently, the model was refined by including fatigue (based on the time estimation of the first model). Fatigue was included because the first model led to a systematic overestimation of the time needed for short activities, whereas the time needed for longer activities was typically underestimated.
 
 1.  Simple Model: Before starting with a multimodel inference (multiple regession), the activities were segmented in increments of one minute. Using multimodel inference, all predictors were checked for their importance. Subsequently, the model with the highest AICc value (lowest delta AICc respectively) was selected to model the individual time requirement of athletes.
 
+2.  Exhaustion Model: Due to exhaustion, the simple model leads to an overestimation of the time requirement for short activities and tends to underestimate it for longer activities. For this reason, the "fatigue component" is added to the model. For this purpose, the time difference between prediction and measurement of each track is used and calculated using a linear model, based on the duration of the prediction. This results in a lower time requirement for short activities and a higher time requirement for longer activities. The slope of the linear model increases due to this correction, but by reducing the intercept, the time requirement decreases for short activities.
 
-2.  Exhaustion Model: Due to exhaustion, the simple model leads to an overestimation of the time requirement for short activities and tends to underestimate it for longer activities. For this reason, the fatigue component is added to the model. For this purpose, the time difference between prediction and measurement of each track is used and calculated using a linear model, based on the duration of the prediction. This results in a lower time requirement for short activities and a higher time requirement for longer activities. The slope of the linear model increases due to this correction, but by reducing the intercept, the time requirement decreases for short activities.
+# Results
 
-#3. Results
+## Comparison data from sportwacht and calculated values
 
-## 3.1. Compare data from sportwatch and calulations
-
-### 3.1.1 Altitude by Pressure vs. Altitude from DEM <a name="subparagraph1"></a>
+### Altitude by pressure vs. altitude from DEM
 
 As described in the methods the accuracy of the pressure measurement by sportwatches had to be evaluated. Therefor the pressure derived altitude from the watch was compared to a high resolution digital elevation model (DEM). The analysis includes a comparison of the absolute altitude measurement in metres above sea level and the altitude difference between the two data sources.
 
-In the case of absolute altitude, there are only a few major differences between the two data sources. For example, activity 9 shows a comparatively large deviation at the beginning, see Figure x.
+In the case of absolute altitude, there are only a few major differences between the two data sources. For example, activity 9 shows a comparatively large deviation at the beginning, see Figure 5.
 
-```{r echo=FALSE, fig.cap="Figure x: Comparison of elevation calculation based on DEM and measurement based on air pressure of the sportwatch", fig.height=10, fig.width=7, message=FALSE, warning=FALSE, paged.print=FALSE}
+```{r echo=FALSE, fig.cap="Figure 5: Comparison of elevation calculation based on DEM and measurement based on air pressure of the sportwatch", fig.height=10, fig.width=7, message=FALSE, warning=FALSE, paged.print=FALSE}
 # Test accuracy of elevation measurement
 full_sf %>%
   st_drop_geometry() %>%
@@ -513,9 +484,9 @@ full_sf %>%
 
 ```
 
-The height difference of both data sources shows more or less permanent fluctuations. It should be noted that a constant variation of the altitude in total leads to a greater altitude difference than realistically completed. These fluctuations are caused on the one hand by the inaccuracy of the pressure measurement of the clock and on the other hand by the inaccuracy of the GPS fixes, which in turn influence the altitude based on the DEM. Based on this data, it is not possible to assess with certainty which data source is the more reliable. However, it is assumed that the GPS fix of the watch is more accurate than the pressure measurement and that the data from the DEM are therefore more reliable. The deviations between the two data sources are shown in figure x.
+The height difference of both data sources shows more or less permanent fluctuations. It should be noted that a constant variation of the altitude in total leads to a greater altitude difference than realistically completed. These fluctuations are caused on the one hand by the inaccuracy of the pressure measurement of the sport watch and on the other hand by the inaccuracy of the GPS fixes, which in turn influence the altitude based on the DEM. Based on this data, it is not possible to assess with certainty which data source is the more reliable. However, it is assumed that the GPS fix of the watch is more accurate than the pressure measurement and that the data from the DEM are therefore more reliable. The deviations between the two data sources are shown in figure 6.
 
-```{r echo=FALSE, fig.cap="Figure x: Difference between of elevation calculation based on DEM and measurement based on air pressure of the sportwatch", fig.height=10, fig.width=7, message=FALSE, warning=FALSE, paged.print=FALSE}
+```{r echo=FALSE, fig.cap="Figure 6: Difference between of elevation calculation based on DEM and measurement based on air pressure of the sportwatch", fig.height=10, fig.width=7, message=FALSE, warning=FALSE, paged.print=FALSE}
 full_sf %>%
   ggplot(aes(timestamp, altitude_diff, col = altitude_diff)) +
   geom_point() +
@@ -525,12 +496,11 @@ full_sf %>%
   labs(x = "\ntimestamp hh:mm", y = "altitude difference (DEM - pressure measurement) in m\n")
 ```
 
-###3.1.2 Tracked distance vs. calculated distance <a name="subparagraph1"></a>
+### Tracked distance vs. calculated distance
 
-The comparison between the recorded distances and those from Eucliedean Distance shows that..
+The comparison between the recorded distances and those from Euclidean Distance shows that in relation to the whole track the values deviate only between approx. -1% and +1%. Therefore, the distances tracked by the sports watch can be further used.
 
-
-```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
+```{r echo=FALSE, fig.cap="Figure 7: histogram for distance_diff (calculated distance - recorded distance/ full track distance)", message=FALSE, warning=FALSE, paged.print=FALSE}
 ggplot(full_sf, aes(distance_diff))+
   geom_histogram(binwidth = 0.001)+
   labs(x= "\ndifference between data from sportwatch and euclidian distance\ncalculation of every timestep among all tracks", y = "frequency\n") +
@@ -538,13 +508,13 @@ ggplot(full_sf, aes(distance_diff))+
   scale_x_continuous(labels = scales::percent)
 ```
 
-### 3.2 Research Question 1 <a name="subparagraph1"></a>
+## Research Question 1
 
-#### 3.2.1 Visualization of the tracks on map
+### Visualization of the tracks on map
 
-There are various packages in R that can be used to visualize location data. In the following, some selected tracks are shown by means of such visualizations to provide an overview about the analyzed raw data . We have restricted ourselves to common packages such as leaflet() and ggmaps().
+There are various packages in R that can be used to visualize location data. In the following, some selected tracks are shown. Those visualizations provide an overview about the analyzed raw data. We have restricted ourselves to common packages such as leaflet() and ggmaps().
 
-```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE, fig.cap="Figure x:"}
+```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
 # ggplot without map => not included in report
 library(tidyverse)
 ggplot(full_sf, aes (x, y, col = enhanced_speed_kmh)) +
@@ -553,11 +523,11 @@ ggplot(full_sf, aes (x, y, col = enhanced_speed_kmh)) +
   theme_bw()
 ```
 
-The Package leaflet offers an interactive option for visualising activities on a map, which is particularly impressive visually. In the following figures x and x, two selected activities are visualised using leaflet. By zooming in, the accuracy of the GPS fixes can be analysed visually.
+The Package leaflet offers an interactive option for visualizing activities on a map, which is particularly impressive visually. In the following figures 8 and 9, two selected activities are visualized using leaflet. By zooming in, the accuracy of the GPS fixes can be analysed visually.
 
-For example, if the user zooms into a forested region (between the locations of Krummenau and Ebnat-Kappel) in figure x, it shows that there is sometimes a large deviation between the GPS fixes and the paths.
+For example, if the user zooms into a forested region (between the locations of Krummenau and Ebnat-Kappel) in figure 6, it shows that there is sometimes a large deviation between the GPS fixes and the paths.
 
-```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE, fig.cap="Figure x: Visualization of a track on a map using package leaflet"}
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE, fig.cap="Figure 8: Visualization of a track on a map using package leaflet"}
 
 library(leaflet)
 
@@ -573,7 +543,7 @@ m1 <- full %>%
 m1
 ```
 
-```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE, fig.cap="Figure x: Visualization of a track on a map using package leaflet"}
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE, fig.cap="Figure 9: Visualization of a track on a map using package leaflet"}
 
 # Example track 6
 m2 <- full %>%
@@ -587,9 +557,9 @@ m2 <- full %>%
 m2
 ```
 
-Another possibility to visualize the activities on a map is offered by the package ggmap. It is based on the ggplot package, but allows the inclusion of map material. Due to the functionality of ggplot, speeds, for example, can be included in the visualization relatively easily by choosing color scales. The following figures x and y show an activity and the speed of the athlete as well as the altitude. When comparing the two graphs, it can be seen that the speed in areas with increasing altitude is lower than in the remaining areas. This shows the relevance of the altitude difference for the development of a model to predict the time required for activities.
+Another possibility to visualize the activities on a map is offered by the package ggmap. It is based on the ggplot package, but allows the inclusion of map material. Due to the functionality of ggplot, speeds, for example, can be included in the visualization relatively easily by choosing color scales. The following figures 10 and 11 show the speed of the athlete as well as the altitude from one random track. When comparing the two graphs, it can be seen that the speed in areas with increasing altitude is lower than in the remaining areas. This shows the relevance of the altitude difference for the development of a model to predict the time required for activities.
 
-```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE, fig.cap="Figure x: Visualization of a track on a map using package ggmap. The color scale represents the speed of the athlete."}
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE, fig.cap="Figure 10: Visualization of a track on a map using package ggmap. The color scale represents the speed of the athlete."}
 # Use ggmap for visualization
 track1_3 <- full %>%
   filter(activity_ID == 1) %>%
@@ -607,7 +577,7 @@ ggmap(myMap) +
              aes(position_long,position_lat, col = speed))
 ```
 
-```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE, fig.cap="Figure x: Visualization of a track on a map using package ggmap. The color scale represents the elevation at the coordinate."}
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE, fig.cap="Figure 11: Visualization of a track on a map using package ggmap. The color scale represents the elevation at the coordinate."}
 
 track1_3 <- full %>%
   filter(activity_ID == 1) %>%
@@ -625,18 +595,16 @@ ggmap(myMap) +
              aes(position_long,position_lat, col = enhanced_altitude))
 ```
 
-#### 3.2.2 Variables affecting the time requirement (shiny)
-
-tophal
+### Variables affecting the time requirement
 
 To answer research question 1, an exploratory data analysis (EDA) of the collected tracks was first conducted.
 
-The Shiny app was programmed to browse through the different tracks of an athlete. Via dropdown menu it is possible to choose between the different tracks:
+The Shiny app (see figure 12) was programmed to browse through the different tracks of one athlete. Via dropdown menu it is possible to choose between the different collected tracks:
 
-```{r echo=FALSE, fig.cap="Figure x:", fig.height=10, fig.width=7, message=FALSE, warning=FALSE, paged.print=FALSE}
+```{r echo=FALSE, fig.cap="Figure 12 plots which show graphically how the variables speed, altitude difference and heart rate behave", fig.height=10, fig.width=7, message=FALSE, warning=FALSE, paged.print=FALSE}
 full_long <- gather(full_sf, type, value, layer, heart_rate, enhanced_speed_03)
 
->>>>>>> a52b6104feca5832167ea8d4a43b57449d467bce
+
 library(shiny)
 library(plotly)
 
@@ -677,17 +645,21 @@ server <- shinyServer(function(input,output){
 })
 
 #get userinterface 
+
 shinyApp(ui,server)
 ```
 
-#### 3.2.3 Summary of tracks
+Figure 12 plots which show graphically how the variables speed, altitude difference and heart rate behave
 
-A summary of all analyzed tracks is shown in table x. This shows that activities in a distance range from x to y kilometers were used. The positive altitude difference per track were between x and y m, the negative altitude difference was measured between x and y m. It also shows the average pace (time required per kilometer of distance). The pace seems to be dependent on the distance and the altitude differences in the sense of an explorative data analysis.
+
+### Summary of tracks
+
+A summary of all analyzed tracks is shown in table 1. This shows that activities in a distance range from x to y kilometers were used. The positive altitude difference per track were between x and y m, the negative altitude difference was measured between x and y m. It also shows the average pace (time required per kilometer of distance). The pace seems to be dependent on the distance and the altitude differences in the sense of an explorative data analysis.
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
-#### Use values from full_short! (andd)
+#### Use values from full_short! 
 library(knitr)
-zf <- full_sf_filtered %>% #zf because of "Zusammenfassung" in german
+zf <- full_sf_filtered %>% #zf because of "Zusammenfassung" in German
   st_drop_geometry() %>%
   group_by(activity_ID) %>%
   summarise(
@@ -698,22 +670,22 @@ zf <- full_sf_filtered %>% #zf because of "Zusammenfassung" in german
     hightdiff_down = sum(hightdiff_down, na.rm = TRUE),
     mean_pace = time / distance * 1000
     )
-kable(zf[order(zf$mean_pace, decreasing = F),], caption = "Table x: Summary of all tracks, ordered by descending mean pace")
+kable(zf[order(zf$mean_pace, decreasing = F),], caption = "Table 1: Summary of all tracks, ordered by descending mean pace")
 ```
 
-### 3.3 Research Question 2 <a name="subparagraph1"></a>
+## Research Question 2
 
 In this chapter the goal was to indicate specific behavioral patterns (e.g. speed, breaks, or similar) in the sports data and when they occur.
 
-#### 3.3.1 Moving/breaking <a name="subparagraph1"></a>
-
-tophal
+### Moving/breaks
 
 In order to produce a model in chapter 3.5, some framework conditions must first be established. For this purpose, the length of the tracks, the actual running time and the breaks per track were identified.
 
-To identify possible outliers,
+From the statistical analysis (see chapter 2.2.4) we see that the running time for the prediction model should not be longer than 3h (system boundary).
 
-```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE, fig.cap="Figure x: Identification of outliers"}
+The following boxplot (figure 13) shows that mainly tracks of 1 h were collected. For the model in Research Question 3, this means that the prediction works best for routes up to 1h. Longer routes (up to 3h) become inaccurate, because only few data are available. Track 1 and 19 are not excluded here as outliers, but it is pointed out that prediction for longer tracks (between 2-3h) can become inaccurate.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE, fig.cap="Figure 13: Identification of outliers"}
 full_short %>%
   mutate(outlier = ifelse(is_outlier(duration_moving), activity_ID, as.numeric(NA))) %>%
   ggplot(aes(x = activity_ID, y = duration_moving)) +
@@ -724,25 +696,100 @@ full_short %>%
         x ="", y = "time in hours\n") +
   theme(axis.title.x=element_blank(),
         axis.text.x=element_blank(),
-        axis.ticks.x=element_blank())
-#track 1 has to be controlled for possible outliers
+        axis.ticks.x=element_blank())+
+  theme_bw()
+#check track 1 / 19 for possible outlier
+
 ```
 
-The statistical analysis showed that track 1, 9, 14 should be removed and that the running time for the prediction model should not be longer than 3h (system boundary).
+In figure 14 we see another shiny app which allows to switch between the different tracks in order to visualize running and breaking sections.
 
-#### 3.3.2 Heart rate patterns<a name="subparagraph1"></a>
+```{r echo=FALSE, fig.cap="Figure 14: Shiny app to select different tracks to examine the breaks in the traces ", fig.height=10, fig.width=7, message=FALSE, warning=FALSE, paged.print=FALSE}
 
-tophal
+#create function for generation of plots for each track
 
-According to Such and Meyer (2010) the maximum heart rate (HRmax) is calculated as 220-age for running and 200-age for biking (rule of thumb). Also, women-specific calculations such as HFmax = 206 - (age x 0.88) (also rule of thumb) exist (Gulati et al). Since only data from male athletes exist in this work, it will not be used further. Therefore, it is important that the data used is up to date or at leas approximately the same as the current age.
+plot_moving_breaks_function <- function(track_ID){
+  
+  full_sf%>% 
+  filter(activity_ID == track_ID) %>%
+  ggplot(aes(x = x, y = y))  +
+  geom_path() +
+  geom_point(aes(colour = static)) +
+  theme(legend.position = "right")+
+  ggtitle("Moving/breaks during different tracks")+
+  theme_bw()
+  
+}
 
-```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE, fig.cap="Figure x: Identification of running sequences with heart rates higher then recommended"}
+#count number of tracks (unique activity ID)
+number_of_tracks <- length(unique(full_sf$activity_ID))
+
+all_plots_moving_breaks <- list() #create empty array
+
+#save plots in array "all_plots_moving_breaks"
+for (track_ID in 1:number_of_tracks) {
+    all_plots_moving_breaks[[track_ID]]<-plot_moving_breaks_function(track_ID)
+  }
+
+#create user interface ui with shiny
+ui <-shinyUI(fluidPage(selectInput("selectPlot", "Choose desired track", choices=1:number_of_tracks), plotlyOutput("plot")))
+
+server <- shinyServer(function(input,output){      
+  output$plot <- renderPlotly({
+    all_plots_moving_breaks[[strtoi(input$selectPlot)]]
+  })
+})
+
+#get userinterface 
+shinyApp(ui,server)
+
+
+```
+Figure 14: Shiny app to select different tracks to examine the breaks in the traces
+
+
+Figure 15 shows the relationship between running time and break-time in minutes. The longer the running time, the longer the breaks required. Track 8 was excluded as it involves an extraordinary long pause (outlier).
+
+```{r  message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
+#Breaks in relation to the runtime
+
+ggplot(full_short, aes(x=duration_breaks, y=duration_moving)) + 
+  geom_point() +
+  geom_text(aes(label=activity_ID),hjust=0, vjust=0)+
+  geom_smooth(method="lm", fill='lightblue', size=0.5, alpha=0.5) +
+  theme(axis.text=element_text(size=12), axis.title=element_text(size=14,face="bold"))+
+  labs(x = "\nduration of breaks [h]", y = "duration of moving [h]\n")+
+  theme_bw()
+```
+
+```{r echo=FALSE, fig.cap="Figure 15: relationsip between running (in hours) and pause time (in minutes)", message=FALSE, warning=FALSE, paged.print=FALSE}
+#excluding track 8 as it include an exeptional long break
+
+full_short %>% 
+  filter(!activity_ID==8) %>% 
+ggplot(aes(x=duration_breaks_min, y=duration_moving)) + 
+  geom_point() +
+  geom_text(aes(label=activity_ID),hjust=0, vjust=0)+
+  geom_smooth(method="lm", fill='lightblue', size=0.5, alpha=0.5) +
+  theme(axis.text=element_text(size=12), axis.title=element_text(size=14,face="bold"))+
+  labs(x = "\nduration of breaks [min]", y = "duration of moving [h]\n")+
+  theme_bw()
+
+```
+
+### Heart rate patterns
+
+According to @such2010athe maximum heart rate (HRmax) is calculated as 220-age for running and 200-age for biking (rule of thumb). Also, women-specific calculations such as HFmax = 206 - (age x 0.88) (also rule of thumb) exist @gulati2010. Since only data from male athletes exist in this work, HRmax will be counted by the first formula (220- age). As the HRmax depend on the age, it is important that the data used is up to date, since the fitness level can change with the age.
+
+Here, the date of birth has to be adjusted in the code manually (birth_athlete) for the selected athlete.
+
+```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
 #max heart rate --literature athlete 1 
 #date of athlete 1
-birth_athelete1 <- as.Date('1991-11-16')
+birth_athelete <- as.Date('1991-11-16')
 now <- Sys.time()
 
-age_a1 <- time_length(difftime(now, birth_athelete1), "years")
+age_a1 <- time_length(difftime(now, birth_athelete), "years")
 
 max_heart_rate_literature <- 220-age_a1
 high_rate <- (max_heart_rate_literature*0.86)
@@ -754,7 +801,7 @@ tracks_heart <- full_sf %>%
 
 
 #make plot with heart_rate normal (training) and high rate
-ggplotly (tracks_heart%>%
+tracks_heart %>%
   ggplot(aes(x, y, col=(high)))  +
   geom_path() +
   geom_point() +
@@ -762,7 +809,7 @@ ggplotly (tracks_heart%>%
   theme_bw()+
   theme(legend.position = "right")+
   facet_wrap(.~activity_ID)+
-  scale_color_manual(values=c("#E69F00", "red")))
+  scale_color_manual(values=c("#E69F00", "red"))
 ```
 
 According to the American Heart Association, the following target heart rate are recommended:
@@ -771,17 +818,60 @@ According to the American Heart Association, the following target heart rate are
 
 -   Vigorous exercise intensity: 70% to about 85% of your maximum heart rate.
 
-For beginners the target heart rate will even be smaller. It is the athlete's choice which training level to select. However, it should not be higher than 85%.
+For beginners the target heart rate will even be smaller. It is the athlete's choice which training level to select. However, it should not be higher than 85%. In following figure 16 the parts which include highrates \>85% are highlighted.
 
-Therefore
+If red areas appear (see Figure 16), a reduction in speed is recommended.
 
-### 3.5 Research Question 3 <a name="subparagraph1"></a>
+``````{r echo=FALSE, fig.cap="Figure 16: tracks with indicated high pulse sections (colored in red)", message=FALSE, warning=FALSE, paged.print=FALSE}
 
-andd =\> Done
+#create function for generation of plots
+
+plot_heart_function <- function(track_ID){
+  
+ #make plot with heart_rate normal (training) and high rate
+tracks_heart %>%
+  filter(activity_ID == track_ID) %>%
+  ggplot(aes(x, y, col=(high)))  +
+  #geom_path() +
+  geom_point() +
+  coord_fixed() +
+  theme_bw()+
+  theme(legend.position = "right")+
+  scale_color_manual(values=c("green4", "red"))
+  
+}
+
+#count number of tracks (unique activity ID)
+number_of_tracks <- length(unique(full_sf$activity_ID))
+
+all_plots_heartrate <- list() #create empty array
+
+#save plots in array "all_plots_heartrate"
+for (track_ID in 1:number_of_tracks) {
+    all_plots_heartrate[[track_ID]]<-plot_heart_function (track_ID)
+  }
+
+#create userinterface ui with shiny
+ui <-shinyUI(fluidPage(selectInput("selectPlot", "Choose desired track", choices=1:number_of_tracks), plotlyOutput("plot")))
+
+server <- shinyServer(function(input,output){      
+  output$plot <- renderPlotly({
+    all_plots_heartrate [[strtoi(input$selectPlot)]]
+  })
+})
+
+#get userinterface 
+shinyApp(ui,server)
+
+```
+Figure 16: tracks with indicated high pulse sections (colored in red)
+
+
+## Research Question 3
 
 In this chapter the results about the research question 3 are presented. First, a simple model for time estimation was build and the accuracy of the estimations was calculated. Then, exhaustion was taken into account by a model extension. Additionally, a new jogging route (not covered in the analyzed tracks) was chosen. Before absolving this route, the time requirement was estimated using the exhaustion model. Finally, the time estimation of this new route was compared to the measurement.
 
-#### 3.5.1 Simple model
+#### Simple model
 
 As described in the methods all activities were segmented in increments of one minute. For these increments the distance and the altitude differences (upwards and downwards) were calculated. These increments were then used to model the time requirement based on the distance and the height differences.
 
@@ -821,20 +911,20 @@ down_param_min <- allmodels.min$hightdiff_down[1]
 options(digits = 4)
 ```
 
-All models of the multimodel inference are shown in table x. The model on the top uses all degrees of freedom (4) which means that the distance as well as the heigthdifferences are used to model the time requirement. As the model on the top shows the lowest AICc value, this model is further used. Model parameters are as follows:
+All models of the multimodel inference are shown in table 2. The model on the top uses all degrees of freedom (4) which means that the distance as well as the heigthdifferences are used to model the time requirement. As the model on the top shows the lowest AICc value, this model is further used. Model parameters are as follows:
 
--   Distance affects the time estimation by `r distance_param_min` minutes per meter of distance which corresponts to `r distance_param_min * 1000` minutes per kilometer.
+-   Distance affects the time estimation by `r distance_param_min` minutes per meter of distance which corresponds to `r distance_param_min * 1000` minutes per kilometer.
 -   Positive height difference affects the time estimation by `r up_param_min` minutes per meter of height difference.
 -   Negative height difference affect the time estimation by `r down_param_min` minutes per meter of height difference.
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
 
-kable(allmodels.min[,1:7], digits = c(4,4,4,0,0,0,0),caption = "Table x: Models derived by multimodel inference. The model on the top uses all degrees of freedom (df) and shows the lowest AICc value corresponding to a delta AICc of 0 whereas the other models are less relevant (showing higher delta AICc values).")
+kable(allmodels.min[,1:7], digits = c(4,4,4,0,0,0,0),caption = "Table 2: Models derived by multimodel inference. The model on the top uses all degrees of freedom (df) and shows the lowest AICc value corresponding to a delta AICc of 0 whereas the other models are less relevant (showing higher delta AICc values).")
 ```
 
-The above described simple model without exhaustion predicts the time requirement for all activities with some deviation to the measured time requirement. As figure x shows, the time estimation meets the measured time requirement for some activities pretty well, whereas the time requirement especially for long activities (measured time requirement) are mostly underestimated. This shows the effect of the exhaustion.
+The above described simple model without exhaustion predicts the time requirement for all activities with some deviation to the measured time requirement. As figure 17 shows, the time estimation meets the measured time requirement for some activities pretty well, whereas the time requirement especially for long activities (measured time requirement) are mostly underestimated. This shows the effect of the exhaustion.
 
-```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE, fig.cap="Figure x: Time estimation of the simple model without exhaustion in comparison with measured time requirement for all tracks of the athlete ordered by decreasing time requirement of the measurement."}
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE, fig.cap="Figure 17: Time estimation of the simple model without exhaustion in comparison with measured time requirement for all tracks of the athlete ordered by decreasing time requirement of the measurement."}
  
 # Estimate time requirement based on above created model parameters
 zf$time_estimated_min <- zf$distance *distance_param_min + zf$hightdiff_up * up_param_min + zf$hightdiff_down * down_param_min
@@ -851,9 +941,9 @@ zf %>%
 
 ```
 
-In addition to the absolute time requirement in minutes, the relative difference between the simple model and the measurement is shown in figure x on a relative scale (deviation between model and measurement in percent). The upper part of the graph shows the measured distance per activity, the bottom shows the deviation of the time in percent. It is clearly demonstrated, that the simple model overestimates the time requirement for short activities (up to around 5 kilometers) and generally underestimates the time requirement for longer activities. As this graph does not take height differences into account, some of long-distance tracks are predicted pretty well. Still, there seems to be a systematical error in the model.
+In addition to the absolute time requirement in minutes, the relative difference between the simple model and the measurement is shown in figure 18 on a relative scale (deviation between model and measurement in percent). The upper part of the graph shows the measured distance per activity, the bottom shows the deviation of the time in percent. It is clearly demonstrated, that the simple model overestimates the time requirement for short activities (up to around 5 kilometers) and generally underestimates the time requirement for longer activities. As this graph does not take height differences into account, some of long-distance tracks are predicted pretty well. Still, there seems to be a systematical error in the model.
 
-```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE, fig.cap="Figure x: Relative deviation between time estimation of the simple model without exhaustion and the measured time requirement for all tracks of the athlete ordered by decreasing time requirement of the measurement. The upper part shows the distance per track in meters, the bottom part shows the deviation."}
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE, fig.cap="Figure 18: Relative deviation between time estimation of the simple model without exhaustion and the measured time requirement for all tracks of the athlete ordered by decreasing time requirement of the measurement. The upper part shows the distance per track in meters, the bottom part shows the deviation."}
 
 # Exhaustion can be seen here
 zf %>% 
@@ -867,7 +957,7 @@ zf %>%
   labs(x = "\nactivity-ID", y = "relative under- and overestimation of time requirement // distance")
 ```
 
-#### 3.5.2 Exhaustion model
+#### Exhaustion model
 
 To correct the systematical error of the above presented model, the effect of exhaustion was calculated using a linear model. First, the absolute time difference between estimation and measurement was calculated. Subsequently, this difference was modeled by a linear model using the estimated time as predictor of the exhaustion. This leads to the following results:
 
@@ -891,9 +981,9 @@ options(digits = 2)
 
 -   The slope of the simple model will be adjusted by an addition of `r as.numeric(adjust.model$coefficients[2])` minutes per minute of estimated time requirement.
 
-The summary of this linear exhaustion model is presented in table x. The r squared of the model is `r sum.ex$r.squared` which means that there is a strong relationship between the time difference and the estimated time of the activity. Still, this adjustment with exhaustion is a linear model with a limited scope of validity. Nevertheless, the exhaustion model seems to predict the time requirement for activities more accurate among most of the tracks. While deviations of the simple model were between -21 and +12%, these deviations (figure x) were reduced to a maximum of -11 % and + 13%. Furthermore the differences no more seem to be systematical.
+The summary of this linear exhaustion model is presented in table 3. The r squared of the model is `r sum.ex$r.squared` which means that there is a strong relationship between the time difference and the estimated time of the activity. Still, this adjustment with exhaustion is a linear model with a limited scope of validity. Nevertheless, the exhaustion model seems to predict the time requirement for activities more accurate among most of the tracks. While deviations of the simple model were between -21 and +12%, these deviations (figure 19) were reduced to a maximum of -11 % and + 13%. Furthermore the differences no more seem to be systematical.
 
-```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE, fig.cap="Figure x: Relative deviation between time estimation of the exhaustion model and the measured time requirement for all tracks of the athlete ordered by decreasing time requirement of the measurement. The upper part shows the distance per track in meters, the bottom part shows the deviation."}
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE, fig.cap="Figure 19: Relative deviation between time estimation of the exhaustion model and the measured time requirement for all tracks of the athlete ordered by decreasing time requirement of the measurement. The upper part shows the distance per track in meters, the bottom part shows the deviation."}
 # Include Exhaustion into model:
 zf$time_estimated_full <- zf$distance *distance_param_min + zf$hightdiff_up * up_param_min + zf$hightdiff_down * down_param_min + zf$time_estimated_min * exhausing_coeff + exhausting_interc
 
@@ -909,11 +999,11 @@ zf %>%
 
 ```
 
-#### 3.5.3 Comparison of the Models and the Measurement
+#### Comparison of the models and the measurement
 
-Figure x additionally shows the measured time requirement per track in descending order as well as the prediction of both models. The exhaustion model seems to predict the time requirement more precise for the most of the activities.
+Figure 20 additionally shows the measured time requirement per track in descending order as well as the prediction of both models. The exhaustion model seems to predict the time requirement more precise for the most of the activities.
 
-```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE, fig.cap="Figure x: Measured time requirement and both model estimations per track, ordered by descending distances."}
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE, fig.cap="Figure 20: Measured time requirement and both model estimations per track, ordered by descending distances."}
 zf %>% 
   dplyr::select(activity_ID, measured = time, estimated_simple = time_estimated_min,  estimated_exhaustion= time_estimated_full, distance, hightdiff_up, hightdiff_down) %>%
   gather(type, value, measured, estimated_exhaustion, estimated_simple) %>%
@@ -959,9 +1049,7 @@ zf %>%
   theme_bw()
 ```
 
-#### 3.5.4 Validation of the Exhaustion Model
-
-andd =\> done!
+#### Validation of the Exhaustion Model
 
 ```{r include = FALSE}
 Running_Dist <- 13540     # Distance of a route
@@ -990,11 +1078,11 @@ In order to validate the exhaustion model, athlete 1 defined a route which was n
 
 Based on these model inputs, the simple model calculates a time requirement of `r valid_time_simple` minutes, whereas the exhaustion model leads to a time estimation of `r valid_time_exhaustion` minutes. Athlete 1 took `r effective_time` minutes to complete the course in the test. Thus the prediction of the exhaustion model is much closer to the measurement than that of the simple model. Nevertheless, it must be noted, that this test with a sample size of only one track is definitely to little to to enable statements about the accuracy of the model.
 
-###  3.5.5 Visualization of Exhaustion Model
+### Visualization of Exhaustion Model
 
-Assuming a range of validity of the model with distances between 3 and 32 kilometers and positive altitude differences between 0 and 1000 meters, the time required for activities can be classified on the basis of the model and displayed on a graph. Figure x shows such a graph, where the predicted time demand can be read out on the vertical z-axis under different conditions (distances and altitude differences). However, the extremely broad scope of this observation means that the time prediction can only serve as a rough basis for planning. Effective times will deviate, among other things, due to the non-linearity of fatigue and environmental parameters. These aspects will be examined in more detail in the discussion.
+Assuming a range of validity of the model with distances between 3 and 32 kilometers and positive altitude differences between 0 and 1000 meters, the time required for activities can be classified on the basis of the model and displayed on a graph. Figure 21 shows such a graph, where the predicted time demand can be read out on the vertical z-axis under different conditions (distances and altitude differences). However, the extremely broad scope of this observation means that the time prediction can only serve as a rough basis for planning. Effective times will deviate, among other things, due to the non-linearity of fatigue and environmental parameters. These aspects will be examined in more detail in the discussion.
 
-```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE, fig.cap="Figure x: 3D-Model of the time estimation by the exhaustion model depending of various distances and hight differences. Hight differences are always calculated for both, upwards and downwards."}
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE, fig.cap="Figure 21: 3D-Model of the time estimation by the exhaustion model depending of various distances and hight differences. Hight differences are always calculated for both, upwards and downwards."}
 # Show the time estimation of different distances and hightdifferences as a 3D plot
 timetable <- data.frame(
   Distance_m = rep(seq(3000 , 32000,  500), each = 11),
@@ -1011,44 +1099,44 @@ timeplot <- plot_ly(timetable, x = ~Distance_m, y = ~hight_difference_m, z = ~ex
 timeplot
 ```
 
-## 4 Discussion <a name="discussion"></a> {#discussion}
+# Discussion
 
 In the following subchapters, the accuracy of the data and the model are discussed. Additionally, the limits of the model to predict the individual time requirement for an athlete at a given route are commented. This leads to the final conclusion about existing problems in the prediction of the time requirement for sporting activities as well as topics to be studied further.
 
-### 4.1 Accuracy of the Data a name="subparagraph2"></a>
+## Accuracy of the Data
 
 The analyses showed a relatively high accuracy of the data in many areas. For example, the distance calculated directly by the sports watch as well as the speed agree very precisely with the calculation via the euclidean distance, with a maximum deviation of 1%.
 
 In the area of altitude differences, there were larger differences between the measurement from the watch, which is based on air pressure, and the DEM. For this reason, the height difference based on the GPS-fixes and a DEM with high resolution was used for the modeling of the time demand. This approach could lead to problems in a larger study area, as the amount of data to be imported increases proportionally with the extension of the study area. Furthermore, the method developed here for importing the DEM is limited to Switzerland, as the underlying elevation model is only available for Switzerland from the source used. Alternative elevation models are available, but would require some additional programming effort.
 
-Finally, however, all relevant parameters depend on the accuracy of the GPS fixes. Figure x shows that the deviations between the GPS fixes and the paths can sometimes be large. A visual analysis of tracks on the map revealed large differences, especially in areas with forest cover. These differences influence all predictors of the model (distance directly and altitude differences indirectly via the DEM).
+Finally, however, all relevant parameters depend on the accuracy of the GPS fixes. Figure ?? shows that the deviations between the GPS fixes and the paths can sometimes be large. A visual analysis of tracks on the map revealed large differences, especially in areas with forest cover. These differences influence all predictors of the model (distance directly and altitude differences indirectly via the DEM).
 
-### 4.2 Limits and Accuracy of the Model a name="subparagraph2"></a>
-
-andd
+## Limits and Accuracy of the Model
 
 In addition to the imprecision of the data, the accuracy of the model and its scope must be questioned. After creating a simple model without fatigue, an extended model was created that can at least partially represent athlete fatigue. This improved the predictions, especially for very short and very long activities. Nevertheless, there are still fluctuations in a range of maximum 15% compared to the effective measured values.
 
 The fatigue model is also a linear model that can only reflect the athlete's situation within a certain range of validity. A validation of the fatigue model with an additional activity showed a high accuracy of the prediction, but does not allow a conclusive statement about the quality of the model. The authors assume that the model can predict the time required for activities in a distance range of 5 to 20 km and an altitude difference of 200 to 800 m relatively accurately.
 
+This automatically means that only time-prediction is recommended for routes between 0-3 h. However, based on previous data, more accurate results are provided for tracks up to 1h. For longer routes, more data would have to be consulted.
+
 Finally, it should be mentioned that the results described here refer to the evaluation of a single athlete. Data from a second person are available and were examined in a separate run. This separate run showed that the method can also be applied to other persons. This means that other model parameters are generated and therefore the time prediction also changes. The goal of a time prediction based on the individual fitness level could thus be fulfilled. The methodology used here can be transferred to other athletes as desired, although the .fit files used must be exchanged.
 
-### 4.3 Problems / Further studies<a name="subparagraph2"></a>
+## Further studies
 
-tophal
+Factors affecting time requirements (and heart rate) include not only the route and its path conditions. Other factors such as the
 
-Factors which influence time requirement (and heart rate), include not only the route and its path circumstances, but also
+-   air temperature / weather conditions
 
--   Air-temperature / weather conditions
+-   age
 
--   Age
+-   pre-existing conditions (such as cardiovascular disease, high cholesterol, diabetes, etc.)
 
--   Having disease such as cardiovascular disease, high cholesterol, diabetes etc.
+-   medications
 
--   Medications
+-   smoker/non-smoker
 
--   Smoker/non-smoker
+-   emotions
 
--   Emotions
+or similar can also influence the time needed for a certain distance. These factors were not considered in this work. Such factors could be included for another more complex model, which would lead to even more accurate results.
 
-## x References
+# References
