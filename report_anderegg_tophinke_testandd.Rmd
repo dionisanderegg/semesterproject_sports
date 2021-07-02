@@ -789,7 +789,7 @@ ggplot(aes(x=duration_breaks_min, y=duration_moving)) +
 
 ### Heart rate patterns
 
-According to @such2010athe maximum heart rate (HRmax) is calculated as 220-age for running and 200-age for biking (rule of thumb). Also, women-specific calculations such as HFmax = 206 - (age x 0.88) (also rule of thumb) exist @gulati2010. Since only data from male athletes exist in this work, HRmax will be counted by the first formula (220- age). As the HRmax depend on the age, it is important that the data used is up to date, since the fitness level can change with the age.
+According to @such2010a maximum heart rate (HRmax) is calculated as 220-age for running and 200-age for biking (rule of thumb). Also, women-specific calculations such as HFmax = 206 - (age x 0.88) (also rule of thumb) exist @gulati2010. Since only data from male athletes exist in this work, HRmax will be counted by the first formula (220- age). As the HRmax depend on the age, it is important that the data used is up to date, since the fitness level can change with the age.
 
 Here, the date of birth has to be adjusted in the code manually (birth_athlete) for the selected athlete.
 
