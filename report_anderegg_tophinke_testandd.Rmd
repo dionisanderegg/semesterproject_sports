@@ -651,7 +651,6 @@ shinyApp(ui,server)
 
 Figure 12 plots which show graphically how the variables speed, altitude difference and heart rate behave
 
-
 ### Summary of tracks
 
 A summary of all analyzed tracks is shown in table 1. This shows that activities in a distance range from x to y kilometers were used. The positive altitude difference per track were between x and y m, the negative altitude difference was measured between x and y m. It also shows the average pace (time required per kilometer of distance). The pace seems to be dependent on the distance and the altitude differences in the sense of an explorative data analysis.
@@ -745,8 +744,8 @@ shinyApp(ui,server)
 
 
 ```
-Figure 14: Shiny app to select different tracks to examine the breaks in the traces
 
+Figure 14: Shiny app to select different tracks to examine the breaks in the traces
 
 Figure 15 shows the relationship between running time and break-time in minutes. The longer the running time, the longer the breaks required. Track 8 was excluded as it involves an extraordinary long pause (outlier).
 
@@ -779,7 +778,7 @@ ggplot(aes(x=duration_breaks_min, y=duration_moving)) +
 
 ### Heart rate patterns
 
-According to @such2010athe maximum heart rate (HRmax) is calculated as 220-age for running and 200-age for biking (rule of thumb). Also, women-specific calculations such as HFmax = 206 - (age x 0.88) (also rule of thumb) exist @gulati2010. Since only data from male athletes exist in this work, HRmax will be counted by the first formula (220- age). As the HRmax depend on the age, it is important that the data used is up to date, since the fitness level can change with the age.
+According to @such2010a maximum heart rate (HRmax) is calculated as 220-age for running and 200-age for biking (rule of thumb). Also, women-specific calculations such as HFmax = 206 - (age x 0.88) (also rule of thumb) exist @gulati2010. Since only data from male athletes exist in this work, HRmax will be counted by the first formula (220- age). As the HRmax depend on the age, it is important that the data used is up to date, since the fitness level can change with the age.
 
 Here, the date of birth has to be adjusted in the code manually (birth_athlete) for the selected athlete.
 
@@ -822,7 +821,7 @@ For beginners the target heart rate will even be smaller. It is the athlete's ch
 
 If red areas appear (see Figure 16), a reduction in speed is recommended.
 
-``````{r echo=FALSE, fig.cap="Figure 16: tracks with indicated high pulse sections (colored in red)", message=FALSE, warning=FALSE, paged.print=FALSE}
+```{r echo=FALSE, fig.cap="Figure 16: tracks with indicated high pulse sections (colored in red)", message=FALSE, warning=FALSE, paged.print=FALSE}
 
 #create function for generation of plots
 
@@ -864,8 +863,8 @@ server <- shinyServer(function(input,output){
 shinyApp(ui,server)
 
 ```
-Figure 16: tracks with indicated high pulse sections (colored in red)
 
+Figure 16: tracks with indicated high pulse sections (colored in red)
 
 ## Research Question 3
 
