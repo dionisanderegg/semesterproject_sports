@@ -281,7 +281,7 @@ full_sf$distance_diff <- (full_sf$steplength_sum - full_sf$distance) / full_sf$T
 
 ### Rolling windows
 
-In this chapter a rolling window with different k-values was generated in order to smooth the time step-values. In figure 2 violin plots from all tracks from athlete 1 are shown. Further in figure 3 all smoothed speed curves are collected and compared to each other. Enhanced_speed_00 is the curve without rolling window (enhanced_speed multiplied by 3.6 to get the unit km/h). Since low values (around 0 km/h) are important to pick out the breaks in further steps, these values must not be lost. For this reason k=3 was defined and used for further calculations.
+In this chapter a rolling window with different k-values was generated in order to smooth the time step-values. In figure 2 violin plots of all tracks from athlete 1 are shown. Further in figure 3 all smoothed speed curves are collected and compared to each other. Enhanced_speed_00 is the curve without rolling window (enhanced_speed multiplied by 3.6 to get the unit km/h). Since low values (around 0 km/h) are important to pick out the breaks in further steps, these values must not be lost. For this reason k=3 was defined and used for further calculations.
 
 ```{r message=TRUE, warning=FALSE, include=FALSE, paged.print=TRUE}
 
@@ -841,10 +841,16 @@ plot_heart_function <- function(track_ID){
  #make plot with heart_rate normal (training) and high rate
 tracks_heart %>%
   filter(activity_ID == track_ID) %>%
-  ggplot(aes(x, y, col=high))  +
-  #geom_path() +
-  geom_point() +
+  ggplot(aes(x, y))  +
+  geom_path() +
+  geom_raster(s1, mapping = aes(x_round, y_round, fill = elevation)) +
+  geom_point(aes(col = high)) +
   coord_fixed() +
+  xlim (min(filter(full_sf, activity_ID == track_ID)$x - 350, na.rm = T),
+        max(filter(full_sf, activity_ID == track_ID)$x + 350, na.rm = T)) +
+  ylim (min(filter(full_sf, activity_ID == track_ID)$y - 550, na.rm = T),
+        max(filter(full_sf, activity_ID == track_ID)$y + 550, na.rm = T)) +
+  scale_fill_gradientn(colours = terrain.colors(7)) +
   theme_bw()+
   theme(legend.position = "right")+
   scale_color_manual(values=c("green4", "red"))
