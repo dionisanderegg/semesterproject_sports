@@ -1,17 +1,19 @@
 ---
-title: "Modelling the individual time requirement for sport activities using previous GPS-Tracks"
-subitle: "Patterns and trends in environmental data - FS21"
+title: Modelling the individual time requirement for sport activities using previous
+  GPS-Tracks
 author: "Anderegg Dionis, Tophinke Alissa"
-date: " 04/07/2021"
+date: ' 04/07/2021'
 output:
   html_document:
-    toc: true
+    toc: yes
     theme: united
-    toc_depth: 3  # upto three depths of headings (specified by #, ## and ###)
-    number_sections: true  ## if you want number sections at each table header
+    toc_depth: 3
+    number_sections: yes
+subitle: Patterns and trends in environmental data - FS21
 runtime: shiny
 bibliography: references.bib
-fig_caption: true
+fig_caption: yes
+abstract : "In this semester project, sports tracks are analysed using data from Garmin devices to identify specific behavior patterns in jogging activities. Exploratory data analysis was used to examine the available data and identify the most important parameters, which were then presented in descriptive plots. The time required for jogging activities is modeled based on the individual fitness level, so that a user-specific forecast of the time required for activities is possible. Two different multiple regession models (Simple Model/ Exhausting Model) were set up, with the latter yielding better forcasts by taking fatigue into account. Model inputs are distance and altitude differences (upwards and downwards)."
 ---
 
 ```{r setup, include=FALSE}
@@ -45,10 +47,6 @@ library(tiff)
 library(MuMIn)
 
 ```
-
-## Abstract
-
-In this semester project, sports tracks are analysed using data from *Garmin* devices to identify specific behavior patterns in jogging activities. Exploratory data analysis was used to examine the available data and identify the most important parameters, which were then presented in descriptive plots. The time required for jogging activities is modeled based on the individual fitness level, so that a user-specific forecast of the time required for activities is possible. Two different multiple regession models (Simple Model/ Exhausting Model) were set up, with the latter yielding better forcasts by taking fatigue into account. Model inputs are distance and altitude differences (upwards and downwards).
 
 # Introduction
 
@@ -166,9 +164,9 @@ To evaluate the altitude data of the device derived from air pressure, a suitabl
 
 The URLs to the GeoTIFF files consist of a fixed part and a part dependent on the location as shown in the following example:
 
--   Fixed part: **https://data.geo.admin.ch/ch.swisstopo.swissalti3d/swissalti3d_2019\_**2485**-**1109**/swissalti3d_2019\_**2485**-**1109**\_2_2056_5728.tif**
+-   Fixed part: [**https://data.geo.admin.ch/ch.swisstopo.swissalti3d/swissalti3d_2019\_**2485**-**1109**/swissalti3d_2019\_**2485**-**1109**\_2_2056_5728.tif**](https://data.geo.admin.ch/ch.swisstopo.swissalti3d/swissalti3d_2020_2485-1109/swissalti3d_2019_2485-1109_2_2056_5728.tif)
 
--   Depending part: https://data.geo.admin.ch/ch.swisstopo.swissalti3d/swissalti3d_2019\_**2485**-**109**/swissalti3d_2019\_**2485**-**1109**\_2_2056_5728.tif
+-   Depending part: [https://data.geo.admin.ch/ch.swisstopo.swissalti3d/swissalti3d_2019\_**2485**-**1109**/swissalti3d_2019\_**2485**-**1109**\_2_2056_5728.tif](https://data.geo.admin.ch/ch.swisstopo.swissalti3d/swissalti3d_2019_2485-1109/swissalti3d_2019_2485-1109_2_2056_5728.tif)
 
 This dependent part was determined on the basis of the examination area. For this purpose, each x- and y-coordinate was floor rounded to one kilometer. This corresponds to the dependent parts of the URLs. Then, all unique combinations of rounded x- and y-coordinates were listed and the necessary URLs defined by the unique combinations and the fixed part of the links.
 
