@@ -13,6 +13,7 @@ subitle: Patterns and trends in environmental data - FS21
 runtime: shiny
 bibliography: references.bib
 fig_caption: yes
+abstract : "In this semester project, sports tracks are analysed using data from Garmin devices to identify specific behavior patterns in jogging activities. Exploratory data analysis was used to examine the available data and identify the most important parameters, which were then presented in descriptive plots. The time required for jogging activities is modeled based on the individual fitness level, so that a user-specific forecast of the time required for activities is possible. Two different multiple regession models (Simple Model/ Exhausting Model) were set up, with the latter yielding better forcasts by taking fatigue into account. Model inputs are distance and altitude differences (upwards and downwards)."
 ---
 
 ```{r setup, include=FALSE}
@@ -29,10 +30,10 @@ library(purrr)
 library(base)
 library(ggpubr)
 
-#if(!requireNamespace("remotes")) {
-#    install.packages("remotes")
-#}
-#devtools::install_github("grimbough/FITfileR")
+if(!requireNamespace("remotes")) {
+    install.packages("remotes")
+}
+remotes::install_github("grimbough/FITfileR")
 
 library(FITfileR)
 library(gdata)
@@ -46,10 +47,6 @@ library(tiff)
 library(MuMIn)
 
 ```
-
-## Abstract
-
-In this semester project, sports tracks are analysed using data from *Garmin* devices to identify specific behavior patterns in jogging activities. Exploratory data analysis was used to examine the available data and identify the most important parameters, which were then presented in descriptive plots. The time required for jogging activities is modeled based on the individual fitness level, so that a user-specific forecast of the time required for activities is possible. Two different multiple regession models (Simple Model/ Exhausting Model) were set up, with the latter yielding better forcasts by taking fatigue into account. Model inputs are distance and altitude differences (upwards and downwards).
 
 # Introduction
 
